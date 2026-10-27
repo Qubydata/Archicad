@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from .. import catalog
+from .. import catalog, claude_desktop
 from .. import server as mcp_server
 from ..connection import ArchicadError
 from . import config, panel
@@ -119,6 +119,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
                 "hasKey": bool(settings.resolved_api_key),
                 "keyFromEnvironment": not settings.api_key and bool(settings.resolved_api_key),
             },
+            "claudeDesktop": claude_desktop.status(),
             "models": config.MODELS,
             "efforts": config.EFFORTS,
             "busy": agent.busy,
@@ -136,6 +137,13 @@ def create_app(port: int, token: str | None = None) -> Starlette:
             settings.auto_open_panel = data["autoOpenPanel"]
         config.save(settings)
         return JSONResponse({"ok": True})
+
+    async def connect_claude_desktop(request: Request) -> Response:
+        try:
+            claude_desktop.connect()
+        except claude_desktop.ClaudeDesktopError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True, **claude_desktop.status()})
 
     async def history(request: Request) -> Response:
         return JSONResponse({
@@ -231,6 +239,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
     api = [
         ("/api/status", status, ["GET"]),
         ("/api/settings", save_settings, ["POST"]),
+        ("/api/claude-desktop/connect", connect_claude_desktop, ["POST"]),
         ("/api/history", history, ["GET"]),
         ("/api/conversations", conversations, ["GET"]),
         ("/api/conversations/open", open_conversation, ["POST"]),

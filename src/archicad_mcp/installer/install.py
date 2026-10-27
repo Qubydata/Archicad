@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import __version__
+from .. import __version__, claude_desktop
 from . import system as sysmod
 from .system import APP_NAME, ArchicadInstall, InstallerError, System
 
@@ -388,20 +388,13 @@ class Installer:
 
     def _configure_claude_desktop(self) -> None:
         path = self.system.claude_config_path
-        if not path.parent.exists():
+        if not claude_desktop.is_installed(path):
             return  # Claude Desktop is not installed
         try:
-            config = json.loads(path.read_text(encoding="utf8")) if path.exists() else {}
-            if not isinstance(config, dict):
-                raise ValueError("not an object")
-        except (OSError, ValueError):
+            previous = claude_desktop.connect(self.system.server_command(), path)
+        except claude_desktop.ClaudeDesktopError:
             self.warnings.append("Claude Desktop's settings file could not be read, so Archicad MCP was not added to it.")
             return
-        servers = config.setdefault("mcpServers", {})
-        previous = servers.get("archicad")
-        command = self.system.server_command()
-        servers["archicad"] = {"command": command[0], "args": command[1:]}
-        path.write_text(json.dumps(config, indent=2), encoding="utf8")
         self.actions.append({"type": "claude_config", "path": str(path), "previous": previous})
 
     def _write_manifest(self) -> None:

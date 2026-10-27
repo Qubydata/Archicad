@@ -145,6 +145,16 @@
   .check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 1px 0 0; }
   .primary { background: var(--accent); color: #fff; border-radius: 8px; padding: 8px 18px; font-weight: 600; }
   .primary:hover { background: var(--accent-strong); }
+  .way { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--card); margin: 4px 0 12px; }
+  .way h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .way p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .way .field { margin: 8px 0 6px; }
+  .tag { font-size: 11.5px; font-weight: 600; border-radius: 10px; padding: 1px 8px; background: var(--accent-soft); color: var(--accent-strong); }
+  .state-line { font-size: 13.5px; }
+  .state-line .ok { color: var(--accent-strong); font-weight: 600; }
+  .state-line .small { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .secondary { border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 14px; font-weight: 600; color: var(--text-2); background: var(--card); }
+  .secondary:hover { border-color: var(--accent); color: var(--accent-strong); }
   .about { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
   .saved { color: var(--accent); font-size: 13px; margin-left: 10px; }
   a { color: var(--accent); }
@@ -258,11 +268,20 @@
 
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
-      <div class="field">Anthropic API key
-        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+      <div class="empty-hint" style="margin-bottom:10px">Archicad MCP is free. It works with your own Claude, in either of these ways:</div>
+      <div class="way">
+        <h3>Use your Claude plan <span class="tag">Pro, Max, Team</span></h3>
+        <p>Work on this model from Claude Desktop, at no extra cost: open Claude Desktop and ask about your Archicad project.</p>
+        <div class="state-line" id="desktopState"></div>
       </div>
-      <div class="empty-hint">Archicad MCP talks to Claude with your own key, stored only on this computer.
-        Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
+      <div class="way">
+        <h3>Chat here in Archicad</h3>
+        <p>This panel needs an Anthropic API key. Anthropic bills your usage, pay as you go. The key stays on this computer.</p>
+        <div class="field">Anthropic API key
+          <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        </div>
+        <div class="empty-hint">Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
+      </div>
       <div class="field">Model <select id="model"></select></div>
       <div class="field">Effort (higher is more careful, slower and costs more) <select id="effort"></select></div>
       <label class="check"><input type="checkbox" id="autoOpen"> <span>Open this panel when Archicad starts</span></label>
@@ -816,9 +835,11 @@ async function refreshStatus() {
     ? (status.settings.keyFromEnvironment ? "Using ANTHROPIC_API_KEY" : "Saved. Paste a new key to replace it")
     : "sk-ant-...";
 
+  renderDesktop(status.claudeDesktop);
+
   const a = status.archicad;
   let notice = "";
-  if (!hasKey) notice = '<div class="notice">Add your Anthropic API key to start. <button data-go="settings">Open Settings</button></div>';
+  if (!hasKey) notice = '<div class="notice">To chat here, add an Anthropic API key. With a Claude plan, use Archicad MCP from Claude Desktop instead. <button data-go="settings">Open Settings</button></div>';
   else if (!a.connected) notice = '<div class="notice bad">Archicad is not running. Start Archicad and open a project.</div>';
   else if (!a.tapir) notice = '<div class="notice">The Tapir add-on is not loaded, so the assistant can read but not change the model. Run the Archicad MCP installer again.</div>';
   $("homeNotice").innerHTML = notice;
@@ -828,6 +849,22 @@ async function refreshStatus() {
     ? `Connected to Archicad ${escapeHtml(a.product.version)} (build ${escapeHtml(a.product.buildNumber)}) on port ${escapeHtml(a.port)}<br>` +
       `Project: ${escapeHtml(a.project || "untitled")}<br>Tapir add-on: ${a.tapir ? escapeHtml(a.tapirVersion || "installed") : "not loaded"}`
     : `Archicad: not connected<br>${escapeHtml(a.message || "")}`;
+}
+
+function renderDesktop(desktop) {
+  const box = $("desktopState");
+  if (desktop.connected) {
+    box.innerHTML = '<div class="ok">\u2713 Connected to Claude Desktop</div><div class="small">Restart Claude Desktop if you just installed Archicad MCP.</div>';
+  } else if (desktop.installed) {
+    box.innerHTML = '<button class="secondary" id="connectDesktop">Connect to Claude Desktop</button><div class="small" id="desktopHint"></div>';
+    $("connectDesktop").onclick = async () => {
+      const answer = await postJson("/api/claude-desktop/connect");
+      if (answer.error) { $("desktopHint").textContent = answer.error; return; }
+      box.innerHTML = '<div class="ok">\u2713 Connected to Claude Desktop</div><div class="small">Restart Claude Desktop to start using it.</div>';
+    };
+  } else {
+    box.innerHTML = '<div class="small">Claude Desktop is not installed. <a href="https://claude.ai/download" target="_blank" rel="noopener">Download it</a>, then open this tab again to connect it.</div>';
+  }
 }
 
 $("saveSettings").onclick = async () => {
