@@ -20,8 +20,13 @@ for those programs.
    - the `archicad` server in Claude Desktop, if Claude Desktop is installed,
    - optionally the background app, which opens the panel whenever Archicad starts.
 3. Start Archicad and open a project. The **MCP** panel appears next to the model.
-4. In the panel's **Settings** tab, paste an Anthropic API key from
-   [console.anthropic.com](https://console.anthropic.com/settings/keys).
+4. Archicad MCP is free and works with your own Claude, in either of two ways:
+   - **With a Claude plan (Pro, Max, Team):** use it from Claude Desktop, at no extra cost. The
+     setup connects it (restart Claude Desktop once); the panel's Settings tab can also connect it.
+   - **In the panel inside Archicad:** paste an Anthropic API key from
+     [console.anthropic.com](https://console.anthropic.com/settings/keys) in the Settings tab.
+     Anthropic bills the usage, pay as you go. (Claude plans can only be used from Anthropic's own
+     apps, which is why the panel needs an API key.)
 
 Every change is a normal Archicad change, so Undo works. Uninstall from Windows Settings >
 Apps, or run `ArchicadMCP uninstall` on macOS. Settings and conversations are kept in
@@ -64,7 +69,7 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --extra installer
-uv run pytest                      # 34 tests; a fake Archicad stands in for the real one
+uv run pytest                      # 38 tests; a fake Archicad stands in for the real one
 uv run archicad-mcp                # the MCP server on stdio
 uv run archicad-mcp-panel --browser   # the chat panel, in a browser
 uv run python -m archicad_mcp.launcher setup   # the setup wizard
