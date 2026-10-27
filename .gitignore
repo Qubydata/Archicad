@@ -5,4 +5,3 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-src/archicad_mcp/chat/cloud_url.txt
