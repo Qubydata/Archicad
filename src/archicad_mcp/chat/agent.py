@@ -19,7 +19,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from ..server import INSTRUCTIONS
-from .config import Settings, cloud_url
+from .config import Settings
 from .history import Conversation, ConversationStore, title_for
 
 SYSTEM_PROMPT = (
@@ -81,7 +81,6 @@ class ChatAgent:
         self.conversation = Conversation()
         self.stop_requested = False
         self.busy = False
-        self.http_client: Any = None  # a custom HTTP client for the Anthropic SDK (tests)
         self._tools: list[dict[str, Any]] | None = None
 
     @property
@@ -154,10 +153,6 @@ class ChatAgent:
         return self._tools
 
     def _client(self) -> anthropic.AsyncAnthropic:
-        if self.settings.uses_subscription:
-            # The cloud service checks the subscription, then forwards to Anthropic unchanged.
-            return anthropic.AsyncAnthropic(api_key=self.settings.account_token, base_url=f"{cloud_url()}/anthropic",
-                                            http_client=self.http_client)
         key = self.settings.resolved_api_key
         return anthropic.AsyncAnthropic(api_key=key) if key else anthropic.AsyncAnthropic()
 

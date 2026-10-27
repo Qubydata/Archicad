@@ -36,9 +36,6 @@ jobs:
           python-version: "3.12"
       - run: uv sync --extra installer
       - name: Build
-        env:
-          # Repository variable with the cloud service URL; leave unset to build the bring-your-own-key app.
-          ARCHICAD_MCP_CLOUD_URL: ${{ vars.ARCHICAD_MCP_CLOUD_URL }}
         run: uv run python packaging/build.py
 
       - name: Install, check and uninstall (Windows)
