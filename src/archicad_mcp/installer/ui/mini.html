@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Archicad MCP Installer</title>
+<style>
+  :root { --accent: #16a34a; --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; user-select: none; -webkit-user-select: none; }
+  body { font: 14px/1.4 var(--font); color: #1b1b1f; background: #fff; border: 1px solid #dfe2e6; }
+  .head { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px 0 14px; background: #f7f8f9; border-bottom: 1px solid #eceef0; }
+  .head img { width: 22px; height: 22px; border-radius: 5px; }
+  .head b { flex: 1; font-weight: 500; font-size: 14px; }
+  .x { width: 30px; height: 28px; border: 0; background: none; color: #9aa0a8; font-size: 18px; cursor: pointer; border-radius: 5px; }
+  .x:hover { background: #eceef0; color: #444; }
+  .body { padding: 12px 14px 0 18px; display: flex; align-items: center; gap: 16px; }
+  .text { flex: 1; }
+  .label { font-size: 15px; margin-bottom: 9px; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .bar { flex: 1; height: 8px; border-radius: 4px; background: #e8eaed; overflow: hidden; }
+  .bar div { height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .3s; }
+  .pct { font-size: 13.5px; color: #3b3f46; width: 38px; text-align: right; }
+  .show { height: 36px; padding: 0 18px; border-radius: 6px; border: 1px solid #d3d6da; background: #fff; font: 14.5px var(--font); cursor: pointer; }
+  .show:hover { background: #f6f7f8; }
+</style>
+</head>
+<body>
+  <div class="head pywebview-drag-region">
+    <img src="../../assets/logo-128.png" alt="">
+    <b>Archicad MCP Installer</b>
+    <button class="x" title="Hide" onclick="window.pywebview.api.hide_mini()">&#x2715;</button>
+  </div>
+  <div class="body">
+    <div class="text">
+      <div class="label" id="label">Installing Archicad MCP...</div>
+      <div class="row"><div class="bar"><div id="bar"></div></div><div class="pct" id="pct">0%</div></div>
+    </div>
+    <button class="show" onclick="window.pywebview.api.show_main()">Show</button>
+  </div>
+<script>
+  window.setPercent = (percent, label) => {
+    document.getElementById("bar").style.width = `${percent}%`;
+    document.getElementById("pct").textContent = `${percent}%`;
+    if (label) document.getElementById("label").textContent = label;
+  };
+</script>
+</body>
+</html>

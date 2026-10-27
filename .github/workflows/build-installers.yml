@@ -1,0 +1,89 @@
+name: Build installers
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra installer
+      - run: uv run pytest -q
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: ArchicadMCPSetup-Windows
+          - os: macos-14
+            artifact: ArchicadMCPSetup-macOS
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra installer
+      - name: Build
+        run: uv run python packaging/build.py
+
+      - name: Install, check and uninstall (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Start-Process dist/release/ArchicadMCPSetup.exe -ArgumentList '--silent','--no-addon','--no-desktop-app' -Wait -PassThru
+          Get-Content "$env:USERPROFILE\.archicad-mcp\setup.log" -ErrorAction SilentlyContinue
+          if ($setup.ExitCode -ne 0) { throw "setup failed with $($setup.ExitCode)" }
+          $app = "$env:LOCALAPPDATA\Programs\Archicad MCP"
+          & "$app\archicad-mcp-server.exe" version
+          uv run python packaging/smoke_test.py "$app\archicad-mcp-server.exe"
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Archicad MCP.lnk")) { throw "no Start menu shortcut" }
+          Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArchicadMCP" | Select-Object DisplayName, DisplayVersion, UninstallString
+          $remove = Start-Process "$app\ArchicadMCP.exe" -ArgumentList 'uninstall','--quiet' -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "uninstall failed with $($remove.ExitCode)" }
+          Start-Sleep -Seconds 6
+          if (Test-Path "$app\archicad-mcp-server.exe") { throw "app folder still there after uninstall" }
+          if (Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArchicadMCP") { throw "uninstall entry still there" }
+
+      - name: Install, check and uninstall (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ditto -x -k dist/release/ArchicadMCPSetup-macOS.zip /tmp/setup
+          "/tmp/setup/Archicad MCP Setup.app/Contents/MacOS/ArchicadMCPSetup" --silent --no-addon --no-desktop-app
+          server="$HOME/Applications/Archicad MCP.app/Contents/MacOS/archicad-mcp-server"
+          "$server" version
+          uv run python packaging/smoke_test.py "$server"
+          "$HOME/Applications/Archicad MCP.app/Contents/MacOS/ArchicadMCP" uninstall --quiet
+          sleep 5
+          test ! -e "$server"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/release/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*

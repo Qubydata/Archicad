@@ -1,0 +1,37 @@
+[project]
+name = "archicad-mcp"
+version = "0.1.0"
+description = "Operate Graphisoft Archicad from Claude: an MCP server plus a chat panel inside Archicad"
+readme = "README.md"
+keywords = ["archicad", "mcp", "bim", "claude", "tapir"]
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=2.3,<3",
+    "httpx>=0.27",
+    "mcp>=2.3,<3",
+    "starlette>=0.40",
+    "uvicorn>=0.30",
+]
+
+[project.scripts]
+archicad-mcp = "archicad_mcp.server:main"
+archicad-mcp-panel = "archicad_mcp.chat.app:main"
+
+[project.optional-dependencies]
+installer = [
+    "pywebview>=5.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.10",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]

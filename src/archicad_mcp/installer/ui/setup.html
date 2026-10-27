@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Archicad MCP Setup</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f9fafb;
+    --text: #1b1b1f;
+    --text-2: #3b3f46;
+    --muted: #61656d;
+    --faint: #9aa0a8;
+    --border: #e3e5e8;
+    --field: #f3f4f6;
+    --field-border: #e2e4e8;
+    --accent: #16a34a;
+    --accent-strong: #15803d;
+    --accent-soft: #eaf7ef;
+    --ok: #1f9d55;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --display: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); overflow: hidden; user-select: none; -webkit-user-select: none; }
+  [hidden] { display: none !important; }
+  button { font: inherit; cursor: pointer; }
+  svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  h1 { font: 700 25px/1.25 var(--display); margin: 0; letter-spacing: -.01em; }
+  .lead { color: var(--text-2); font-size: 15px; margin: 10px 0 0; }
+
+  .buttons { display: flex; justify-content: flex-end; gap: 12px; }
+  .btn { min-width: 112px; height: 38px; padding: 0 20px; border-radius: 6px; font-size: 15px; border: 1px solid #d3d6da; background: #fff; color: var(--text); box-shadow: 0 1px 0 rgba(0,0,0,.04); }
+  .btn:hover { background: #f6f7f8; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  /* checkbox, Windows 11 style */
+  .cb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border-radius: 4px; border: 1.5px solid #8a8f97; background: #fff; margin: 0; flex: none; display: inline-grid; place-content: center; cursor: pointer; }
+  .cb:checked { background: var(--accent); border-color: var(--accent); }
+  .cb:checked::after { content: ""; width: 10px; height: 6px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .cb:disabled { opacity: .45; cursor: default; }
+
+  /* 1. welcome */
+  #welcome { flex-direction: row; background: linear-gradient(#eef3f9, #f8fafc); }
+  #welcome .art { width: 36%; height: 100%; overflow: hidden; flex: none; }
+  #welcome .art img { height: 100%; width: auto; display: block; }
+  #welcome .content { flex: 1; background: var(--bg); border-top-left-radius: 14px; margin-top: 16px; box-shadow: -6px 0 24px rgba(30, 50, 80, .06); padding: 30px 30px 24px 30px; display: flex; flex-direction: column; }
+  .hero { display: flex; align-items: center; gap: 18px; }
+  .hero img { width: 74px; height: 74px; border-radius: 16px; }
+  .hero h1 { font-size: 29px; }
+  .hero p { margin: 2px 0 0; color: var(--muted); font-size: 16px; }
+  .intro { color: var(--text-2); font-size: 15px; margin: 22px 0 14px; line-height: 1.55; }
+  .features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 13px; }
+  .features li { display: flex; align-items: center; gap: 14px; font-size: 15px; color: var(--text-2); }
+  .features svg.i { color: var(--accent); width: 21px; height: 21px; }
+  #welcome .buttons { margin-top: auto; }
+
+  /* 2. options */
+  .page { padding: 30px 32px 22px; display: flex; flex-direction: column; height: 100%; }
+  .page .lead { margin-top: 6px; }
+  .versions { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; max-height: 196px; padding-right: 4px; }
+  .version .head { display: flex; align-items: center; gap: 14px; font-size: 15.5px; }
+  .version .path { display: flex; gap: 10px; margin: 8px 0 0 34px; }
+  .version .path input { flex: 1; min-width: 0; height: 34px; border-radius: 6px; border: 1px solid var(--field-border); background: var(--field); color: var(--muted); padding: 0 12px; font: 13.5px var(--font); }
+  .version .path .btn { min-width: 0; height: 34px; font-size: 14px; padding: 0 16px; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0 10px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 10px; color: var(--text); }
+  .option { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px; cursor: pointer; }
+  .option .cb { margin-top: 2px; }
+  .option b { display: block; font-weight: 400; font-size: 15.5px; }
+  .option span { color: var(--muted); font-size: 14px; }
+  .page .buttons { margin-top: auto; padding-top: 10px; }
+  .none-found { color: var(--muted); font-size: 13.5px; }
+
+  /* 3. installing */
+  .steps { list-style: none; padding: 0; margin: 24px 0 0 4px; display: flex; flex-direction: column; gap: 17px; }
+  .steps li { display: flex; align-items: center; gap: 16px; font-size: 15.5px; color: var(--text-2); }
+  .steps li.pending { color: var(--faint); }
+  .dot { width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-content: center; }
+  .dot.done { background: var(--ok); }
+  .dot.done::after { content: ""; width: 10px; height: 6px; border: 2.4px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .dot.warning { background: var(--warn); color: #fff; font-weight: 800; font-size: 15px; }
+  .dot.warning::after { content: "!"; }
+  .dot.failed { background: var(--bad); color: #fff; font-weight: 800; }
+  .dot.failed::after { content: "\00d7"; font-size: 18px; line-height: 1; }
+  .dot.pending { border: 2px solid #d5d8dc; }
+  .dot.active { border: 2.5px solid #d9dde2; border-top-color: var(--accent); border-right-color: var(--accent); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress { display: flex; align-items: center; gap: 16px; margin-top: 40px; }
+  .bar { flex: 1; height: 8px; border-radius: 4px; background: #e8eaed; overflow: hidden; }
+  .bar div { height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .3s; }
+  .pct { width: 42px; text-align: right; color: var(--text-2); font-size: 14.5px; }
+  .error { margin-top: 14px; color: var(--bad); font-size: 14px; }
+
+  /* 4. complete */
+  #complete .page { flex-direction: row; gap: 30px; align-items: flex-start; padding: 34px 34px 24px 40px; }
+  .big { width: 88px; height: 88px; border-radius: 50%; display: grid; place-content: center; flex: none; margin-top: 4px; }
+  .big.ok { background: var(--ok); }
+  .big.ok::after { content: ""; width: 34px; height: 18px; border: 7px solid #fff; border-top: 0; border-right: 0; transform: translateY(-4px) rotate(-45deg); border-radius: 2px; }
+  .big.bad { background: var(--bad); }
+  .big.bad::after, .big.warn::after { content: "!"; color: #fff; font: 800 46px/1 var(--display); }
+  .big.warn { background: var(--warn); }
+  .done-text { flex: 1; display: flex; flex-direction: column; min-height: 100%; }
+  .done-text h1 { font-size: 26px; }
+  .done-text .checks { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .done-text label { display: flex; gap: 12px; align-items: center; font-size: 15px; cursor: pointer; }
+  .notes { margin: 12px 0 0; padding: 0 0 0 18px; color: #92400e; font-size: 13px; }
+  .notes li { margin: 2px 0; }
+  .done-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+</style>
+</head>
+<body>
+
+<!-- 1. Welcome -->
+<section class="screen" id="welcome">
+  <div class="art"><img src="building.svg" alt=""></div>
+  <div class="content">
+    <div class="hero">
+      <img src="../../assets/logo-256.png" alt="">
+      <div><h1>Archicad MCP</h1><p>AI Assistant for Archicad</p></div>
+    </div>
+    <p class="intro">Connect Archicad with powerful AI tools to speed up design, documentation and workflow.</p>
+    <ul class="features">
+      <li><i data-icon="check"></i><span id="supported">Works with Archicad 25 - 30</span></li>
+      <li><i data-icon="chat"></i>Chat with your project</li>
+      <li><i data-icon="create"></i>Create elements, drawings and schedules</li>
+      <li><i data-icon="shield"></i>Secure and private</li>
+    </ul>
+    <div class="buttons">
+      <button class="btn" data-action="cancel">Cancel</button>
+      <button class="btn primary" data-action="next">Next</button>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Options -->
+<section class="screen" id="options" hidden>
+  <div class="page">
+    <h1>Choose Installation Options</h1>
+    <p class="lead">Select which Archicad versions to install the MCP for:</p>
+    <div class="versions" id="versions"></div>
+    <hr>
+    <h2>Additional options</h2>
+    <label class="option"><input type="checkbox" class="cb" id="optAddon" checked>
+      <div><b>Install Archicad Add-on</b><span>Adds MCP panel inside Archicad</span></div></label>
+    <label class="option"><input type="checkbox" class="cb" id="optDesktop" checked>
+      <div><b>Install Desktop App (optional)</b><span>Runs in the background for faster performance</span></div></label>
+    <div class="buttons">
+      <button class="btn" data-action="back">Back</button>
+      <button class="btn primary" data-action="install" id="installButton">Install</button>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Installing -->
+<section class="screen" id="installing" hidden>
+  <div class="page">
+    <h1>Installing Archicad MCP</h1>
+    <p class="lead">Please wait while we install Archicad MCP and required components.</p>
+    <ul class="steps" id="steps"></ul>
+    <div class="progress"><div class="bar"><div id="bar"></div></div><div class="pct" id="pct">0%</div></div>
+    <div class="buttons">
+      <button class="btn" data-action="cancel-install" id="cancelInstall">Cancel</button>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Complete -->
+<section class="screen" id="complete" hidden>
+  <div class="page">
+    <div class="big ok" id="bigIcon"></div>
+    <div class="done-text">
+      <h1 id="doneTitle">Installation Complete!</h1>
+      <p class="lead" id="doneLead">Archicad MCP has been successfully installed.</p>
+      <ul class="notes" id="notes" hidden></ul>
+      <div class="done-row">
+        <div class="checks" id="doneChecks">
+          <label><input type="checkbox" class="cb" id="openArchicad" checked> Open Archicad now</label>
+          <label><input type="checkbox" class="cb" id="showGuide" checked> Show quick start guide</label>
+        </div>
+        <button class="btn primary" data-action="finish" id="finishButton">Finish</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// Icons: Lucide (ISC license), https://lucide.dev
+const ICONS = {
+  check: '<rect width="18" height="18" x="3" y="3" rx="3"/><path d="m8.5 12 2.5 2.5 5-5"/>',
+  chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  create: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+};
+document.querySelectorAll("i[data-icon]").forEach(el => {
+  el.outerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[el.dataset.icon]}</svg>`;
+});
+
+const $ = id => document.getElementById(id);
+const screens = ["welcome", "options", "installing", "complete"];
+let state = null;      // from Python: versions, platform...
+let targets = [];      // rows on the options screen
+let installing = false;
+let result = null;
+
+const api = () => window.pywebview.api;
+
+function show(name) {
+  screens.forEach(s => { $(s).hidden = s !== name; });
+  api().screen_changed(name);
+}
+
+function renderVersions() {
+  const list = $("versions");
+  list.innerHTML = "";
+  targets.forEach((t, index) => {
+    const row = document.createElement("div");
+    row.className = "version";
+    row.innerHTML = `<label class="head"><input type="checkbox" class="cb"><span></span></label>
+      <div class="path"><input readonly tabindex="-1"></div>`;
+    const box = row.querySelector(".cb");
+    box.checked = t.selected;
+    box.onchange = () => { t.selected = box.checked; updateInstallButton(); };
+    row.querySelector("span").textContent = `Archicad ${t.version}${t.detected ? " (Detected)" : ""}`;
+    row.querySelector(".path input").value = t.path;
+    if (!t.detected) {
+      const browse = document.createElement("button");
+      browse.className = "btn";
+      browse.textContent = "Browse...";
+      browse.onclick = async () => {
+        const chosen = await api().browse(t.path);
+        if (!chosen) return;
+        t.path = chosen.path;
+        t.version = chosen.version;
+        t.selected = true;
+        renderVersions();
+      };
+      row.querySelector(".path").appendChild(browse);
+    }
+    list.appendChild(row);
+  });
+  if (!targets.some(t => t.detected)) {
+    list.insertAdjacentHTML("afterbegin", '<div class="none-found">No Archicad installation was found automatically. Pick its folder with Browse.</div>');
+  }
+  updateInstallButton();
+}
+
+function updateInstallButton() {
+  const any = targets.some(t => t.selected);
+  // Without an Archicad version the add-on cannot be installed, but the app and Claude Desktop setup still can.
+  $("installButton").disabled = !any && $("optAddon").checked;
+}
+$("optAddon").onchange = updateInstallButton;
+
+function renderSteps(steps) {
+  $("steps").innerHTML = steps.map(s => {
+    const label = s.state === "active" && s.key === "finalize" ? `${s.label}...` : s.label;
+    return `<li class="${s.state}"><span class="dot ${s.state}"></span><span>${label}</span></li>`;
+  }).join("");
+}
+
+window.setup = {
+  progress(update) {
+    renderSteps(update.steps);
+    $("bar").style.width = `${update.percent}%`;
+    $("pct").textContent = `${update.percent}%`;
+    if (update.status !== "running") finished(update);
+  },
+};
+
+function finished(update) {
+  installing = false;
+  result = update;
+  const notes = $("notes");
+  notes.innerHTML = "";
+  (update.warnings || []).forEach(w => { const li = document.createElement("li"); li.textContent = w; notes.appendChild(li); });
+  notes.hidden = !update.warnings || !update.warnings.length;
+  const big = $("bigIcon");
+  if (update.status === "done") {
+    big.className = "big ok";
+    $("doneTitle").textContent = "Installation Complete!";
+    $("doneLead").textContent = "Archicad MCP has been successfully installed.";
+    $("doneChecks").hidden = false;
+    const canOpen = targets.some(t => t.selected);
+    $("openArchicad").disabled = !canOpen;
+    $("openArchicad").checked = canOpen && !update.archicadRunning;
+  } else {
+    big.className = update.status === "cancelled" ? "big warn" : "big bad";
+    $("doneTitle").textContent = update.status === "cancelled" ? "Installation Cancelled" : "Installation Failed";
+    $("doneLead").textContent = update.status === "cancelled"
+      ? "No changes were made to your computer."
+      : (update.error || "Something went wrong.") + " Changes were undone.";
+    $("doneChecks").hidden = true;
+    $("finishButton").textContent = "Close";
+  }
+  show("complete");
+}
+
+document.addEventListener("click", async event => {
+  const button = event.target.closest("[data-action]");
+  if (!button || button.disabled) return;
+  const action = button.dataset.action;
+  if (action === "cancel") api().quit();
+  if (action === "next") show("options");
+  if (action === "back") show("welcome");
+  if (action === "install") {
+    installing = true;
+    renderSteps(state.steps.map(label => ({ label, state: "pending" })));
+    show("installing");
+    api().install({
+      targets: targets.filter(t => t.selected).map(({ version, path, detected }) => ({ version, path, detected })),
+      installAddon: $("optAddon").checked,
+      desktopApp: $("optDesktop").checked,
+    });
+  }
+  if (action === "cancel-install") {
+    if (await api().confirm_cancel()) { $("cancelInstall").disabled = true; $("cancelInstall").textContent = "Cancelling..."; }
+  }
+  if (action === "finish") {
+    api().finish(result && result.status === "done" && $("openArchicad").checked && !$("openArchicad").disabled,
+                 result && result.status === "done" && $("showGuide").checked);
+  }
+});
+
+async function start() {
+  state = await api().get_state();
+  $("supported").textContent = `Works with Archicad ${state.supported[0]} - ${state.supported[1]}`;
+  targets = state.archicad.map(a => ({ ...a, selected: a.detected }));
+  renderVersions();
+  if (state.screen) show(state.screen);
+}
+if (window.pywebview && window.pywebview.api) start();
+else window.addEventListener("pywebviewready", start);
+</script>
+</body>
+</html>
