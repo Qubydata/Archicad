@@ -6,10 +6,14 @@ Steps: build the app folder (app.spec), zip it as the setup payload, build the
 one-file setup (setup.spec), then copy the result to dist/release/:
     Windows: ArchicadMCPSetup.exe
     macOS:   ArchicadMCPSetup-macOS.zip (contains "Archicad MCP Setup.app")
+
+Set ARCHICAD_MCP_CLOUD_URL to the cloud service's address to build the app with
+sign-in and subscriptions; without it the app asks for the user's own API key.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -38,6 +42,13 @@ def zip_folder(folder: Path, archive: Path) -> None:
 
 
 def main() -> None:
+    cloud_url = os.environ.get("ARCHICAD_MCP_CLOUD_URL", "").strip()
+    url_file = ROOT / "src" / "archicad_mcp" / "chat" / "cloud_url.txt"
+    if cloud_url:
+        url_file.write_text(cloud_url + "\n", encoding="utf8")
+        print(f"Subscriptions: the app signs in at {cloud_url}")
+    elif not url_file.exists():
+        print("Subscriptions: no ARCHICAD_MCP_CLOUD_URL, so the app asks users for their own Anthropic API key")
     shutil.rmtree(DIST, ignore_errors=True)
     (BUILD / "payload").mkdir(parents=True, exist_ok=True)
     RELEASE.mkdir(parents=True, exist_ok=True)

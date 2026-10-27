@@ -20,7 +20,8 @@ for those programs.
    - the `archicad` server in Claude Desktop, if Claude Desktop is installed,
    - optionally the background app, which opens the panel whenever Archicad starts.
 3. Start Archicad and open a project. The **MCP** panel appears next to the model.
-4. In the panel's **Settings** tab, paste an Anthropic API key from
+4. In the panel's **Settings** tab, sign in with your e-mail and start the subscription (the AI is
+   included), or paste your own Anthropic API key from
    [console.anthropic.com](https://console.anthropic.com/settings/keys).
 
 Every change is a normal Archicad change, so Undo works. Uninstall from Windows Settings >
@@ -58,16 +59,24 @@ For IT deployment: `ArchicadMCPSetup.exe --silent [--no-addon] [--no-desktop-app
 - `archicad_mcp.installer` is the setup wizard (pywebview) and its install engine. Each change it
   makes is recorded in a manifest, so cancel, failure and uninstall undo exactly what was done.
 
+## Subscriptions
+
+`archicad_mcp_cloud` is the service that lets you sell Archicad MCP with the AI included: e-mail
+sign-in with one-time codes, Stripe Checkout and Customer Portal, and a metered proxy to Claude that
+enforces each subscriber's monthly allowance. Setup, pricing and deployment:
+[docs/subscriptions.md](docs/subscriptions.md).
+
 ## For developers
 
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --extra installer
-uv run pytest                      # 34 tests; a fake Archicad stands in for the real one
+uv run pytest                      # 48 tests; fakes stand in for Archicad, Claude, Stripe and e-mail
 uv run archicad-mcp                # the MCP server on stdio
 uv run archicad-mcp-panel --browser   # the chat panel, in a browser
 uv run python -m archicad_mcp.launcher setup   # the setup wizard
+uv run archicad-mcp-cloud serve    # the subscription service (EMAIL_PROVIDER=console logs sign-in codes)
 ```
 
 Use the server from Claude Desktop without the installer (`claude_desktop_config.json`):
@@ -84,7 +93,8 @@ Or from Claude Code: `claude mcp add archicad -- uv --directory /path/to/Archica
 
 Environment variables: `ARCHICAD_PORT` (skip discovery), `ARCHICAD_HOST`, `ARCHICAD_TIMEOUT`
 (seconds, default 120), `ANTHROPIC_API_KEY` (used by the panel when no key is saved),
-`ARCHICAD_MCP_HOME` (settings folder, default `~/.archicad-mcp`).
+`ARCHICAD_MCP_HOME` (settings folder, default `~/.archicad-mcp`), `ARCHICAD_MCP_CLOUD_URL` (the
+subscription service; built into the installers from the repository variable of the same name).
 
 ### Building the installers
 
@@ -111,6 +121,9 @@ src/archicad_mcp/
   chat/                                  panel: agent, web service, conversations, static/index.html
   installer/                             setup wizard (ui/*.html), install engine, OS integration
   launcher.py                            entry point of the packaged apps
+src/archicad_mcp_cloud/                  subscription service: sign-in, Stripe, metered Claude proxy
+docs/subscriptions.md                    how to set up and deploy subscriptions
+Dockerfile                               container for the subscription service
 packaging/                               PyInstaller specs, build and smoke test scripts, icons
 tests/                                   tests and the fake Archicad
 ```

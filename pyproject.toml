@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 archicad-mcp = "archicad_mcp.server:main"
 archicad-mcp-panel = "archicad_mcp.chat.app:main"
+archicad-mcp-cloud = "archicad_mcp_cloud.__main__:main"
 
 [project.optional-dependencies]
 installer = [
@@ -35,3 +36,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+
+[tool.uv.build-backend]
+module-name = ["archicad_mcp", "archicad_mcp_cloud"]

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import secrets
 import time
+import webbrowser
 from importlib import resources
 from typing import Any
 
@@ -23,7 +24,7 @@ from starlette.routing import Route
 from .. import catalog
 from .. import server as mcp_server
 from ..connection import ArchicadError
-from . import config, panel
+from . import cloud, config, panel
 from .agent import ChatAgent
 from .history import ConversationStore
 
@@ -32,7 +33,16 @@ LIBRARY_TYPES = {"Object", "Lamp", "Door", "Window"}
 ASSETS = {"logo-128.png": "image/png", "logo-256.png": "image/png", "quickstart.html": "text/html; charset=utf-8"}
 
 
-def _api_error_message(exc: Exception) -> str:
+def _api_error_message(exc: Exception, subscription: bool = False) -> str:
+    if subscription and isinstance(exc, anthropic.APIStatusError):
+        body = exc.body if isinstance(exc.body, dict) else {}
+        message = (body.get("error") or {}).get("message") if isinstance(body.get("error"), dict) else None
+        if exc.status_code == 401:
+            return "You were signed out. Sign in again in Settings."
+        if exc.status_code == 402:
+            return f"{message or 'Your subscription is not active.'} See Settings."
+        if message:
+            return message
     if isinstance(exc, anthropic.AuthenticationError):
         return "The Anthropic API key was rejected. Open Settings and paste a valid key."
     if isinstance(exc, anthropic.PermissionDeniedError):
@@ -118,6 +128,10 @@ def create_app(port: int, token: str | None = None) -> Starlette:
                 "autoOpenPanel": settings.auto_open_panel,
                 "hasKey": bool(settings.resolved_api_key),
                 "keyFromEnvironment": not settings.api_key and bool(settings.resolved_api_key),
+                "ready": settings.ready,
+                "subscription": settings.uses_subscription,
+                "accountEmail": settings.account_email if settings.uses_subscription else "",
+                "cloudAvailable": bool(config.cloud_url()),
             },
             "models": config.MODELS,
             "efforts": config.EFFORTS,
@@ -128,6 +142,8 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         data = await request.json()
         if data.get("apiKey"):
             settings.api_key = data["apiKey"].strip()
+        if data.get("removeApiKey"):
+            settings.api_key = ""
         if data.get("model") in config.MODELS:
             settings.model = data["model"]
         if data.get("effort") in config.EFFORTS:
@@ -135,6 +151,71 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         if isinstance(data.get("autoOpenPanel"), bool):
             settings.auto_open_panel = data["autoOpenPanel"]
         config.save(settings)
+        return JSONResponse({"ok": True})
+
+    # --- account (the Archicad MCP cloud service) ---------------------------
+
+    def signed_out() -> None:
+        settings.account_token = ""
+        settings.account_email = ""
+        config.save(settings)
+
+    async def account(request: Request) -> Response:
+        if not config.cloud_url():
+            return JSONResponse({"available": False})
+        if not settings.account_token:
+            return JSONResponse({"available": True, "signedIn": False})
+        try:
+            me = await cloud.call("GET", "/v1/me", settings.account_token)
+        except cloud.CloudError as exc:
+            if exc.status == 401:
+                signed_out()
+                return JSONResponse({"available": True, "signedIn": False, "notice": "You were signed out. Sign in again."})
+            return JSONResponse({"available": True, "signedIn": True, "email": settings.account_email, "offline": str(exc)})
+        return JSONResponse({"available": True, "signedIn": True, **me})
+
+    async def account_start(request: Request) -> Response:
+        email = str((await request.json()).get("email", "")).strip()
+        try:
+            answer = await cloud.call("POST", "/v1/auth/start", json={"email": email})
+        except cloud.CloudError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse(answer)
+
+    async def account_verify(request: Request) -> Response:
+        data = await request.json()
+        try:
+            answer = await cloud.call("POST", "/v1/auth/verify", json={
+                "email": data.get("email", ""), "code": data.get("code", ""), "device": cloud.device_name(),
+            })
+        except cloud.CloudError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        settings.account_token = answer["token"]
+        settings.account_email = answer["account"]["email"]
+        config.save(settings)
+        return JSONResponse({"ok": True, "account": answer["account"]})
+
+    async def account_link(request: Request, path: str) -> Response:
+        try:
+            url = (await cloud.call("POST", path, settings.account_token))["url"]
+        except cloud.CloudError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        webbrowser.open(url)  # Stripe's pages open in the user's own browser
+        return JSONResponse({"ok": True, "url": url})
+
+    async def account_subscribe(request: Request) -> Response:
+        return await account_link(request, "/v1/billing/checkout")
+
+    async def account_manage(request: Request) -> Response:
+        return await account_link(request, "/v1/billing/portal")
+
+    async def account_signout(request: Request) -> Response:
+        if settings.account_token:
+            try:
+                await cloud.call("POST", "/v1/auth/logout", settings.account_token)
+            except cloud.CloudError:
+                pass
+        signed_out()
         return JSONResponse({"ok": True})
 
     async def history(request: Request) -> Response:
@@ -181,7 +262,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
                 async for event in agent.send(text):
                     yield json.dumps(event) + "\n"
             except Exception as exc:  # reported in the chat instead of breaking the stream
-                event = {"type": "error", "message": _api_error_message(exc)}
+                event = {"type": "error", "message": _api_error_message(exc, settings.uses_subscription)}
                 agent._record(event)
                 yield json.dumps(event) + "\n"
             finally:
@@ -231,6 +312,12 @@ def create_app(port: int, token: str | None = None) -> Starlette:
     api = [
         ("/api/status", status, ["GET"]),
         ("/api/settings", save_settings, ["POST"]),
+        ("/api/account", account, ["GET"]),
+        ("/api/account/start", account_start, ["POST"]),
+        ("/api/account/verify", account_verify, ["POST"]),
+        ("/api/account/subscribe", account_subscribe, ["POST"]),
+        ("/api/account/manage", account_manage, ["POST"]),
+        ("/api/account/signout", account_signout, ["POST"]),
         ("/api/history", history, ["GET"]),
         ("/api/conversations", conversations, ["GET"]),
         ("/api/conversations/open", open_conversation, ["POST"]),

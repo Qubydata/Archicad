@@ -145,6 +145,33 @@
   .check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 1px 0 0; }
   .primary { background: var(--accent); color: #fff; border-radius: 8px; padding: 8px 18px; font-weight: 600; }
   .primary:hover { background: var(--accent-strong); }
+  .account { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--card); margin: 4px 0 14px; }
+  .account h3 { margin: 0 0 4px; font-size: 15px; }
+  .account p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  .account .line { display: flex; gap: 8px; }
+  .account .line input { flex: 1; min-width: 0; font: 14px var(--font); color: var(--text); background: var(--bg); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; outline: none; }
+  .account .line input:focus { border-color: var(--accent); }
+  .account .code { letter-spacing: 6px; font-weight: 600; text-align: center; }
+  .account .error { color: var(--bad); font-size: 13px; margin-top: 8px; }
+  .account .who { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; display: grid; place-content: center; flex: none; text-transform: uppercase; }
+  .who .row-text { flex: 1; min-width: 0; }
+  .plan { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .pill { font-size: 11.5px; font-weight: 600; border-radius: 10px; padding: 1px 8px; background: var(--accent-soft); color: var(--accent-strong); }
+  .pill.off { background: var(--surface); color: var(--muted); }
+  .pill.bad { background: #fef2f2; color: #b91c1c; }
+  .usage { margin: 14px 0 12px; }
+  .usage .label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .usage .meter { height: 8px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+  .usage .meter div { height: 100%; background: var(--accent); border-radius: 4px; }
+  .usage .meter div.full { background: var(--bad); }
+  .account .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .secondary { border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 14px; font-weight: 600; color: var(--text-2); background: var(--card); }
+  .secondary:hover { border-color: var(--accent); color: var(--accent-strong); }
+  .link-button { color: var(--accent); font-size: 13px; font-weight: 600; }
+  .link-button:hover { text-decoration: underline; }
+  details.own-key { margin: 6px 0 4px; }
+  details.own-key summary { cursor: pointer; color: var(--text-2); font-size: 13.5px; font-weight: 600; padding: 4px 0; }
   .about { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
   .saved { color: var(--accent); font-size: 13px; margin-left: 10px; }
   a { color: var(--accent); }
@@ -258,11 +285,17 @@
 
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
-      <div class="field">Anthropic API key
-        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
-      </div>
-      <div class="empty-hint">Archicad MCP talks to Claude with your own key, stored only on this computer.
-        Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
+      <div id="accountBox"></div>
+      <details class="own-key" id="ownKey">
+        <summary id="ownKeySummary">Use your own Anthropic API key instead</summary>
+        <div class="field">Anthropic API key
+          <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        </div>
+        <div class="empty-hint">Requests then go straight to Anthropic and are billed to your Anthropic account.
+          The key is stored only on this computer. Create one at
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+          <button class="link-button" id="removeKey" hidden>Remove the saved key</button></div>
+      </details>
       <div class="field">Model <select id="model"></select></div>
       <div class="field">Effort (higher is more careful, slower and costs more) <select id="effort"></select></div>
       <label class="check"><input type="checkbox" id="autoOpen"> <span>Open this panel when Archicad starts</span></label>
@@ -316,7 +349,7 @@ const params = new URLSearchParams(location.search);
 const token = params.get("t") || "";
 const inPalette = params.get("palette") === "1";
 const $ = id => document.getElementById(id);
-let busy = false, hasKey = true, currentTab = "chat", chatView = "home";
+let busy = false, ready = true, currentTab = "chat", chatView = "home";
 
 function api(path, body) {
   return fetch(path, {
@@ -382,7 +415,7 @@ function setTab(tab) {
   showPane(tab === "chat" ? chatView : tab);
   if (tab === "library") loadLibrary();
   if (tab === "tools") loadCommands();
-  if (tab === "settings") refreshStatus();
+  if (tab === "settings") { refreshStatus(); loadAccount(); }
 }
 
 function setChatView(view) {
@@ -603,7 +636,7 @@ function setBusy(value) {
 }
 
 async function send(text) {
-  if (!hasKey) { setTab("settings"); $("apiKey").focus(); return; }
+  if (!ready) { setTab("settings"); return; }
   if (busy) return;
   setTab("chat");
   if (chatView !== "conversation") setChatView("conversation");
@@ -803,7 +836,8 @@ async function refreshStatus() {
     $("homeNotice").innerHTML = '<div class="notice bad">The Archicad MCP service stopped. Open Archicad MCP again.</div>';
     return;
   }
-  hasKey = status.settings.hasKey;
+  ready = status.settings.ready;
+  cloudAvailable = status.settings.cloudAvailable;
   const model = $("model"), effort = $("effort");
   if (!model.options.length) {
     for (const [id, name] of Object.entries(status.models)) model.add(new Option(name, id));
@@ -815,10 +849,16 @@ async function refreshStatus() {
   $("apiKey").placeholder = status.settings.hasKey
     ? (status.settings.keyFromEnvironment ? "Using ANTHROPIC_API_KEY" : "Saved. Paste a new key to replace it")
     : "sk-ant-...";
+  $("removeKey").hidden = !status.settings.hasKey || status.settings.keyFromEnvironment;
+  // Without the cloud service the API key is the only way in, so show it plainly.
+  $("ownKeySummary").hidden = !cloudAvailable;
+  if (!cloudAvailable) $("ownKey").open = true;
 
   const a = status.archicad;
   let notice = "";
-  if (!hasKey) notice = '<div class="notice">Add your Anthropic API key to start. <button data-go="settings">Open Settings</button></div>';
+  if (!ready) notice = cloudAvailable
+    ? '<div class="notice">Sign in to start using Archicad MCP. <button data-go="settings">Sign in</button></div>'
+    : '<div class="notice">Add your Anthropic API key to start. <button data-go="settings">Open Settings</button></div>';
   else if (!a.connected) notice = '<div class="notice bad">Archicad is not running. Start Archicad and open a project.</div>';
   else if (!a.tapir) notice = '<div class="notice">The Tapir add-on is not loaded, so the assistant can read but not change the model. Run the Archicad MCP installer again.</div>';
   $("homeNotice").innerHTML = notice;
@@ -828,6 +868,124 @@ async function refreshStatus() {
     ? `Connected to Archicad ${escapeHtml(a.product.version)} (build ${escapeHtml(a.product.buildNumber)}) on port ${escapeHtml(a.port)}<br>` +
       `Project: ${escapeHtml(a.project || "untitled")}<br>Tapir add-on: ${a.tapir ? escapeHtml(a.tapirVersion || "installed") : "not loaded"}`
     : `Archicad: not connected<br>${escapeHtml(a.message || "")}`;
+}
+
+$("removeKey").onclick = async () => {
+  await postJson("/api/settings", { removeApiKey: true });
+  await refreshStatus();
+};
+
+/* ---- account: sign-in and subscription -------------------------------- */
+
+let cloudAvailable = false, signInEmail = "", accountPoll = null;
+
+function formatDate(seconds) {
+  return seconds ? new Date(seconds * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+}
+
+function planLine(a) {
+  const ends = formatDate(a.periodEnd);
+  if (a.status === "trialing") return `<span class="pill">Free trial</span> ends ${ends}`;
+  if (a.status === "active") return `<span class="pill">Pro</span> ${a.cancelAtPeriodEnd ? "ends" : "renews"} ${ends}`;
+  if (a.status === "comped") return `<span class="pill">Complimentary</span> until ${ends}`;
+  if (a.status === "past_due" || a.status === "unpaid") return '<span class="pill bad">Payment failed</span>';
+  if (a.status === "canceled") return '<span class="pill off">Ended</span>';
+  return '<span class="pill off">No subscription</span>';
+}
+
+function renderSignedOut(box, notice = "") {
+  const codeStep = Boolean(signInEmail);
+  box.innerHTML = `<div class="account">
+    <h3>Sign in</h3>
+    <p>${codeStep ? `We sent a 6-digit code to <b>${escapeHtml(signInEmail)}</b>.`
+                  : "Sign in to use Archicad MCP with the AI included. No API key needed."}</p>
+    <form class="line" id="signForm">
+      ${codeStep ? '<input id="signCode" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">'
+                 : '<input id="signEmail" type="email" autocomplete="email" placeholder="you@studio.com">'}
+      <button class="primary" type="submit">${codeStep ? "Sign in" : "Send code"}</button>
+    </form>
+    ${codeStep ? '<div style="margin-top:8px"><button class="link-button" id="otherEmail">Use another e-mail</button> &nbsp; <button class="link-button" id="resend">Send a new code</button></div>' : ""}
+    <div class="error" id="signError">${escapeHtml(notice)}</div>
+  </div>`;
+  const field = box.querySelector("input");
+  field.focus();
+  const fail = message => { $("signError").textContent = message; };
+  $("signForm").onsubmit = async event => {
+    event.preventDefault();
+    const button = box.querySelector("button[type=submit]");
+    button.disabled = true;
+    if (!codeStep) {
+      const answer = await (await api("/api/account/start", { email: field.value })).json();
+      button.disabled = false;
+      if (answer.error) return fail(answer.error);
+      signInEmail = field.value.trim();
+      renderSignedOut(box, answer.message || "");
+    } else {
+      const answer = await (await api("/api/account/verify", { email: signInEmail, code: field.value })).json();
+      button.disabled = false;
+      if (answer.error) return fail(answer.error);
+      signInEmail = "";
+      await refreshStatus();
+      await loadAccount();
+    }
+  };
+  $("otherEmail")?.addEventListener("click", () => { signInEmail = ""; renderSignedOut(box); });
+  $("resend")?.addEventListener("click", async () => {
+    const answer = await (await api("/api/account/start", { email: signInEmail })).json();
+    fail(answer.error || answer.message || "A new code is on its way.");
+  });
+}
+
+function renderSignedIn(box, a) {
+  const used = a.usage ? a.usage.usedUsd : 0, limit = a.usage ? a.usage.limitUsd : 0;
+  const share = limit ? Math.min(100, Math.round(100 * used / limit)) : 0;
+  let action = "";
+  if (a.offline) action = "";
+  else if (!a.active && a.billing) action = `<button class="primary" id="subscribe">${a.status === "none" && a.trialDays ? `Start ${a.trialDays}-day free trial` : "Subscribe"}</button>`;
+  if (a.hasCustomer && a.status !== "comped") action += '<button class="secondary" id="manage">Manage subscription</button>';
+  box.innerHTML = `<div class="account">
+    <div class="who">
+      <div class="avatar">${escapeHtml((a.email || "?").slice(0, 1))}</div>
+      <div class="row-text"><div class="row-title">${escapeHtml(a.email || "")}</div><div class="plan">${a.offline ? "Offline" : planLine(a)}</div></div>
+      <button class="link-button" id="signOut">Sign out</button>
+    </div>
+    ${a.active ? `<div class="usage"><div class="label"><span>AI usage this period</span><span>$${used.toFixed(2)} of $${limit.toFixed(2)}</span></div>
+      <div class="meter"><div class="${share >= 100 ? "full" : ""}" style="width:${share}%"></div></div></div>` : '<div style="height:12px"></div>'}
+    ${a.message || a.offline ? `<div class="notice ${a.active ? "" : "bad"}" style="margin:0 0 12px">${escapeHtml(a.offline || a.message)}</div>` : ""}
+    <div class="actions">${action}<span class="empty-hint" id="accountHint"></span></div>
+  </div>`;
+  $("signOut").onclick = async () => { await postJson("/api/account/signout"); await refreshStatus(); await loadAccount(); };
+  $("subscribe")?.addEventListener("click", async () => {
+    const answer = await postJson("/api/account/subscribe");
+    if (answer.error) { $("accountHint").textContent = answer.error; return; }
+    $("accountHint").textContent = "Finish checkout in your browser, then come back here.";
+    watchForSubscription();
+  });
+  $("manage")?.addEventListener("click", async () => {
+    const answer = await postJson("/api/account/manage");
+    $("accountHint").textContent = answer.error || "Opened in your browser.";
+  });
+}
+
+async function loadAccount() {
+  const box = $("accountBox");
+  const a = await getJson("/api/account");
+  if (!a.available) { box.innerHTML = ""; return a; }
+  if (!a.signedIn) renderSignedOut(box, a.notice || "");
+  else renderSignedIn(box, a);
+  return a;
+}
+
+function watchForSubscription() {
+  clearInterval(accountPoll);
+  let tries = 0;
+  accountPoll = setInterval(async () => {
+    const a = await loadAccount();
+    if ((a.active && a.allowed) || ++tries > 60) {
+      clearInterval(accountPoll);
+      await refreshStatus();
+    }
+  }, 5000);
 }
 
 $("saveSettings").onclick = async () => {
@@ -855,7 +1013,7 @@ buildTools();
   const history = await loadHistory();
   if (history.items.length) chatView = "conversation";
   const tab = ["chat", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : "chat";
-  setTab(hasKey ? tab : "settings");
+  setTab(ready ? tab : "settings");
   if (chatView === "home") loadRecent();
   if (history.busy) setBusy(true);
   setInterval(() => { if (!busy) refreshStatus(); }, 20000);
