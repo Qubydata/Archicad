@@ -6,9 +6,29 @@ import json
 import os
 import pathlib
 from dataclasses import asdict, dataclass
+from importlib import resources
 
 CONFIG_DIR = pathlib.Path(os.environ.get("ARCHICAD_MCP_HOME", pathlib.Path.home() / ".archicad-mcp"))
 CONFIG_FILE = CONFIG_DIR / "config.json"
+
+
+
+def _bundled_cloud_url() -> str:
+    """The cloud service URL written into the app at build time (packaging/build.py), if any."""
+    try:
+        return resources.files("archicad_mcp.chat").joinpath("cloud_url.txt").read_text(encoding="utf8").strip()
+    except (OSError, ValueError):
+        return ""
+
+
+# The Archicad MCP cloud service (sign-in and subscriptions); ARCHICAD_MCP_CLOUD_URL overrides it.
+# Empty: there is no sign-in and users bring their own Anthropic API key.
+DEFAULT_CLOUD_URL = _bundled_cloud_url()
+
+
+def cloud_url() -> str:
+    return os.environ.get("ARCHICAD_MCP_CLOUD_URL", DEFAULT_CLOUD_URL).strip().rstrip("/")
+
 
 MODELS = {
     "claude-opus-5-5": "Claude Opus 5.5 (best results)",
@@ -24,10 +44,21 @@ class Settings:
     model: str = "claude-opus-5-5"
     effort: str = "medium"
     auto_open_panel: bool = True
+    account_email: str = ""
+    account_token: str = ""
 
     @property
     def resolved_api_key(self) -> str:
         return self.api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+
+    @property
+    def uses_subscription(self) -> bool:
+        """Signed in to the cloud service: Claude requests go through it, billed to the subscription."""
+        return bool(self.account_token and cloud_url())
+
+    @property
+    def ready(self) -> bool:
+        return self.uses_subscription or bool(self.resolved_api_key)
 
 
 def load() -> Settings:
