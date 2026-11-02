@@ -6,7 +6,7 @@ tick the tools you want:
 | Tool | What it does |
 | --- | --- |
 | **AI Assistant** | Chat with Claude in a panel inside Archicad ("build a 6 x 4 m room with 3 m walls", "add a window to the selected wall") and it changes the open model. Also an [MCP](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code, Cursor and other MCP clients can operate Archicad, the way Blender MCP and the Revit MCP servers work for those programs. |
-| **Sun Analysis** | Sunlight and daylight maps on your rooms, live in the 3D window (in progress). |
+| **Sun Analysis** | Daylight maps on your room floors, live in the 3D window: coloured tiles from blue (dark) to red (bright) that turn and pan with the model, and a time slider that replays the day. Shows daylight in lux (direct sun, skylight through openings and glass, and light reflected in the room), hours of direct sun, or the daylight factor, for the project's location and any date. Also available to the AI Assistant ("how much daylight does the living room get on December 21?"). |
 | **Dark Mode** | A dark interface for Archicad 25 to 29 on Windows (coming soon). |
 
 Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the installer.
@@ -73,7 +73,7 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --extra installer
-uv run pytest                      # 50 tests; a fake Archicad stands in for the real one
+uv run pytest                      # 57 tests; a fake Archicad stands in for the real one
 uv run tevavid-mcp                 # the MCP server on stdio
 uv run tevavid-panel --browser     # the panel, in a browser
 uv run python -m archicad_mcp.launcher setup   # the setup wizard
@@ -119,7 +119,8 @@ src/archicad_mcp/
   chat/                                  panel: agent, web service, conversations, static/index.html
   installer/                             setup wizard (ui/*.html), install engine, OS integration
   suite.py                               the tools of the suite (what the installer offers)
-  sun/                                   Sun Analysis: sun position, geometry, shadow ray casting
+  sun/                                   Sun Analysis: sun position (NOAA), clear sky (ASHRAE), CIE sky patches,
+                                         shadow ray casting, daylight with reflections, Archicad tiles
   launcher.py                            entry point of the packaged apps
 packaging/                               PyInstaller specs, build and smoke test scripts, icons
 tests/                                   tests and the fake Archicad

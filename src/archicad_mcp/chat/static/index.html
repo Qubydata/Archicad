@@ -61,8 +61,8 @@
   .brand p { margin: 1px 0 0; color: var(--muted); font-size: 13px; }
   .icon-button { width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); }
   .icon-button:hover { background: var(--surface); }
-  .tabs { display: flex; gap: 30px; padding: 14px 22px 0; }
-  .tabs button { position: relative; padding: 8px 0 11px; color: var(--muted); font-size: 16px; }
+  .tabs { display: flex; gap: 22px; padding: 14px 20px 0; }
+  .tabs button { position: relative; padding: 8px 0 11px; color: var(--muted); font-size: 15.5px; }
   .tabs button:hover { color: var(--text-2); }
   .tabs button.active { color: var(--accent); font-weight: 600; }
   .tabs button.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px; background: var(--accent); }
@@ -166,6 +166,44 @@
   .menu button.danger { color: var(--bad); }
   .menu svg.i { width: 17px; height: 17px; color: var(--muted); }
 
+  .link-button { color: var(--accent); font-size: 13px; font-weight: 600; }
+  .link-button:hover { text-decoration: underline; }
+
+  /* --- Sun Analysis ------------------------------------------------------- */
+  .sun-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--card); margin-bottom: 12px; }
+  .sun-card h3 { margin: 0 0 6px; font-size: 14.5px; display: flex; align-items: center; gap: 8px; }
+  .sun-card h3 .grow { flex: 1; }
+  .location-line { font-size: 14px; color: var(--text); }
+  .location-line small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .location-edit { display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 8px; margin-top: 8px; }
+  .location-edit input, .sun-form select, .sun-form input[type=date], .advanced input[type=number] {
+    font: 13.5px var(--font); color: var(--text); background: var(--bg); border: 1px solid var(--border-strong);
+    border-radius: 8px; padding: 6px 8px; width: 100%; outline: none; }
+  .location-edit label, .sun-form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+  .sun-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sun-form .wide { grid-column: 1 / -1; }
+  .quick-dates { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+  .quick-dates button, .metric-pills button { border: 1px solid var(--border-strong); border-radius: 14px; padding: 3px 10px; font-size: 12.5px; color: var(--text-2); }
+  .quick-dates button:hover { border-color: var(--accent); color: var(--accent-strong); }
+  .metric-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .metric-pills button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+  details.advanced { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+  details.advanced summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
+  .advanced .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+  .run-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .run-row .primary { flex: 1; padding: 9px 18px; }
+  .progress-bar { height: 6px; border-radius: 3px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin: 10px 0 4px; }
+  .progress-bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .legend-bar { height: 12px; border-radius: 6px; margin: 6px 0 3px; }
+  .legend-ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+  .sun-stats { font-size: 13.5px; color: var(--text-2); margin-top: 8px; }
+  .time-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .time-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .time-row .clock { font-variant-numeric: tabular-nums; font-weight: 600; width: 46px; text-align: right; }
+  .play { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .play svg.i { width: 16px; height: 16px; }
+  .sun-notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; }
+
   /* --- compact panel (screen 8) ----------------------------------------- */
   #compact { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; }
   #compact img { width: 58px; height: 58px; border-radius: 12px; margin-bottom: 18px; cursor: pointer; }
@@ -189,6 +227,7 @@
   </header>
   <nav class="tabs" id="tabs">
     <button data-tab="chat" class="active">Chat</button>
+    <button data-tab="sun">Sun</button>
     <button data-tab="tools">Tools</button>
     <button data-tab="library">Library</button>
     <button data-tab="settings">Settings</button>
@@ -266,9 +305,75 @@
       <div id="libraryList"></div>
     </section>
 
+    <!-- Sun Analysis -->
+    <section class="tab" id="sun" hidden>
+      <div class="sun-card">
+        <h3><span class="grow">Location</span><button class="link-button" id="editLocation">Change</button></h3>
+        <div class="location-line" id="locationLine">Reading the project location...</div>
+        <div class="location-edit" id="locationEdit" hidden>
+          <label>Latitude (north +)<input id="latInput" type="number" step="0.0001"></label>
+          <label>Longitude (east +)<input id="lonInput" type="number" step="0.0001"></label>
+          <label>UTC offset (h)<input id="utcInput" type="number" step="0.5"></label>
+          <div style="grid-column: 1 / -1; display: flex; gap: 8px">
+            <button class="small-button" id="saveLocation">Use this location</button>
+            <button class="small-button" id="resetLocation">Use the project location</button>
+          </div>
+        </div>
+      </div>
+      <div class="sun-card">
+        <div class="sun-form">
+          <label class="wide">Analyze
+            <select id="sunScope"><option value="story">Rooms on the current story</option><option value="all">Rooms on all stories</option><option value="selection">Selected rooms</option></select>
+          </label>
+          <label class="wide">Show
+            <select id="sunMetric"><option value="illuminance">Daylight through the day (lux)</option><option value="sun_hours">Hours of direct sun</option><option value="daylight_factor">Daylight factor (%)</option></select>
+          </label>
+          <label class="wide">Date <input type="date" id="sunDate">
+            <span class="quick-dates"><button type="button" data-date="06-21">Jun 21</button><button type="button" data-date="03-20">Mar 20</button><button type="button" data-date="09-22">Sep 22</button><button type="button" data-date="12-21">Dec 21</button><button type="button" data-date="today">Today</button></span>
+          </label>
+          <label>Grid
+            <select id="sunGrid"><option value="0.25">0.25 m (fine)</option><option value="0.5" selected>0.5 m</option><option value="1">1 m (fast)</option></select>
+          </label>
+          <label>Height
+            <select id="sunPlane"><option value="0">On the floor</option><option value="0.85">Work plane, 0.85 m</option></select>
+          </label>
+          <details class="advanced">
+            <summary>Materials and reflections</summary>
+            <div class="grid3">
+              <label>Floor reflects %<input type="number" id="rFloor" value="20" min="0" max="95"></label>
+              <label>Walls reflect %<input type="number" id="rWall" value="50" min="0" max="95"></label>
+              <label>Ceiling reflects %<input type="number" id="rCeiling" value="70" min="0" max="95"></label>
+            </div>
+            <label class="check" style="margin:4px 0"><input type="checkbox" id="sunFurniture"> <span>Furniture and objects cast shadows</span></label>
+            <div>Glass passes the transparency set on its surface in Archicad, or 70% when unknown.</div>
+          </details>
+        </div>
+        <div class="run-row"><button class="primary" id="sunRun">Run analysis</button></div>
+        <div id="sunProgress" hidden><div class="progress-bar"><div id="sunBar"></div></div><div class="empty-hint" id="sunMessage"></div></div>
+        <div class="error" id="sunError" style="color: var(--bad); font-size: 13px; margin-top: 8px"></div>
+      </div>
+      <div class="sun-card" id="sunResult" hidden>
+        <div class="metric-pills" id="sunPills">
+          <button data-metric="illuminance">Daylight</button><button data-metric="sun_hours">Sun hours</button><button data-metric="daylight_factor">Daylight factor</button>
+        </div>
+        <h3><span class="grow" id="legendTitle"></span></h3>
+        <div class="legend-bar" id="legendBar"></div>
+        <div class="legend-ticks" id="legendTicks"></div>
+        <div class="sun-stats" id="sunStats"></div>
+        <div class="time-row" id="timeRow">
+          <button class="play" id="sunPlay" title="Play through the day"><i data-icon="play"></i></button>
+          <input type="range" id="sunTime" min="0" max="0" value="0">
+          <span class="clock" id="sunClock"></span>
+        </div>
+        <ul class="sun-notes" id="sunNotes"></ul>
+        <div style="margin-top: 12px"><button class="small-button" id="sunClear">Remove the tiles</button></div>
+      </div>
+    </section>
+
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
-      <div class="empty-hint" style="margin-bottom:10px">Tevavid Tools is free. It works with your own Claude, in either of these ways:</div>
+      <div id="aiSettings">
+      <div class="empty-hint" style="margin-bottom:10px">The AI Assistant is free. It works with your own Claude, in either of these ways:</div>
       <div class="way">
         <h3>Use your Claude plan <span class="tag">Pro, Max, Team</span></h3>
         <p>Work on this model from Claude Desktop, at no extra cost: open Claude Desktop and ask about your Archicad project.</p>
@@ -284,6 +389,7 @@
       </div>
       <div class="field">Model <select id="model"></select></div>
       <div class="field">Effort (higher is more careful, slower and costs more) <select id="effort"></select></div>
+      </div>
       <label class="check"><input type="checkbox" id="autoOpen"> <span>Open this panel when Archicad starts</span></label>
       <button class="primary" id="saveSettings">Save</button><span class="saved" id="savedNote" hidden>Saved</span>
       <div class="about" id="about"></div>
@@ -294,6 +400,7 @@
 <div id="compact" hidden>
   <img src="/assets/logo-128.png" alt="Tevavid Tools" title="Expand" data-expand="chat">
   <button class="nav active" data-expand="chat" title="Chat"><i data-icon="chat"></i></button>
+  <button class="nav" data-expand="sun" title="Sun Analysis"><i data-icon="sun"></i></button>
   <button class="nav" data-expand="tools" title="Tools"><i data-icon="grid"></i></button>
   <button class="nav" data-expand="library" title="Library"><i data-icon="cube"></i></button>
   <button class="nav" data-expand="settings" title="Settings"><i data-icon="gear"></i></button>
@@ -326,6 +433,8 @@ const ICONS = {
   book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
   trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
   open: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
 };
 const icon = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -402,6 +511,7 @@ function setTab(tab) {
   if (tab === "library") loadLibrary();
   if (tab === "tools") loadCommands();
   if (tab === "settings") refreshStatus();
+  if (tab === "sun") loadSun();
 }
 
 function setChatView(view) {
@@ -836,6 +946,7 @@ async function refreshStatus() {
     : "sk-ant-...";
 
   renderDesktop(status.claudeDesktop);
+  applyTools(status.tools || ["assistant", "sun"]);
 
   const a = status.archicad;
   let notice = "";
@@ -880,6 +991,171 @@ $("saveSettings").onclick = async () => {
   await refreshStatus();
 };
 
+
+/* ---- installed tools ----------------------------------------------------- */
+
+let installed = ["assistant", "sun"];
+const TAB_TOOL = { chat: "assistant", tools: "assistant", library: "assistant", sun: "sun" };
+function tabAllowed(tab) { return !TAB_TOOL[tab] || installed.includes(TAB_TOOL[tab]); }
+function applyTools(tools) {
+  installed = tools;
+  document.querySelectorAll("#tabs button").forEach(b => { b.hidden = !tabAllowed(b.dataset.tab); });
+  document.querySelectorAll("#compact [data-expand]").forEach(b => { b.hidden = b.tagName === "BUTTON" && !tabAllowed(b.dataset.expand); });
+  $("aiSettings").hidden = !installed.includes("assistant");
+  if (!tabAllowed(currentTab)) setTab(installed.includes("sun") ? "sun" : "settings");
+}
+
+/* ---- Sun Analysis ------------------------------------------------------- */
+
+const SUN_LABELS = { illuminance: "Daylight", sun_hours: "Direct sun", daylight_factor: "Daylight factor" };
+let sun = null, playing = null, showing = false, pendingTime = null;
+
+function formatLatLon(lat, lon) {
+  const f = (v, pos, neg) => `${Math.abs(v).toFixed(4)}°${v >= 0 ? pos : neg}`;
+  return `${f(lat, "N", "S")}, ${f(lon, "E", "W")}`;
+}
+
+async function loadSun() {
+  if (!$("sunDate").value) $("sunDate").value = new Date().toISOString().slice(0, 10);
+  sun = await getJson("/api/sun");
+  const place = sun.projectLocation;
+  if (place) {
+    const north = Math.round(((90 - place.north * 180 / Math.PI) % 360 + 360) % 360);
+    $("locationLine").innerHTML = `${escapeHtml(formatLatLon(place.latitude, place.longitude))}, UTC ${place.utcOffset >= 0 ? "+" : ""}${escapeHtml(place.utcOffset)}`
+      + `<small>${place.source === "override" ? "Set here, not in the project." : "From Options > Project Location in Archicad."} `
+      + `Project north ${north}°. The sun path, and so every result, depends on it.</small>`;
+    $("latInput").value = place.latitude; $("lonInput").value = place.longitude; $("utcInput").value = place.utcOffset;
+  } else {
+    $("locationLine").innerHTML = `<small>${escapeHtml(sun.locationError || "Archicad is not connected.")}</small>`;
+  }
+  renderSunResult(sun);
+}
+
+$("editLocation").onclick = () => { $("locationEdit").hidden = !$("locationEdit").hidden; };
+$("saveLocation").onclick = async () => {
+  const answer = await postJson("/api/sun/location", { latitude: $("latInput").value, longitude: $("lonInput").value, utcOffset: $("utcInput").value });
+  if (answer.error) { $("sunError").textContent = answer.error; return; }
+  $("locationEdit").hidden = true; loadSun();
+};
+$("resetLocation").onclick = async () => { await postJson("/api/sun/location", { reset: true }); $("locationEdit").hidden = true; loadSun(); };
+document.querySelectorAll(".quick-dates button").forEach(b => b.onclick = () => {
+  const year = ($("sunDate").value || new Date().toISOString()).slice(0, 4);
+  $("sunDate").value = b.dataset.date === "today" ? new Date().toISOString().slice(0, 10) : `${year}-${b.dataset.date}`;
+});
+
+$("sunRun").onclick = async () => {
+  stopPlaying();
+  $("sunError").textContent = "";
+  $("sunRun").disabled = true;
+  $("sunProgress").hidden = false;
+  $("sunBar").style.width = "0%";
+  try {
+    const response = await api("/api/sun/run", {
+      scope: $("sunScope").value, metric: $("sunMetric").value, date: $("sunDate").value,
+      grid: $("sunGrid").value, workPlane: $("sunPlane").value, includeFurniture: $("sunFurniture").checked,
+      floor_reflectance: $("rFloor").value / 100, wall_reflectance: $("rWall").value / 100, ceiling_reflectance: $("rCeiling").value / 100,
+    });
+    if (!response.ok) throw new Error((await response.json()).error || `server answered ${response.status}`);
+    const reader = response.body.getReader(), decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1);
+        if (!line.trim()) continue;
+        const event = JSON.parse(line);
+        if (event.type === "progress") { $("sunBar").style.width = `${Math.round(event.fraction * 100)}%`; $("sunMessage").textContent = event.message; }
+        else if (event.type === "error") $("sunError").textContent = event.message;
+        else if (event.type === "result") { sun = event.state; renderSunResult(sun); }
+      }
+    }
+  } catch (error) {
+    $("sunError").textContent = `The analysis stopped: ${error.message}`;
+  } finally {
+    $("sunRun").disabled = false;
+    $("sunProgress").hidden = true;
+  }
+};
+
+function sunNumber(value, unit) {
+  if (unit === "lux") return Math.round(value).toLocaleString();
+  return (Math.round(value * 10) / 10).toLocaleString();
+}
+function withUnit(value, unit) {
+  return unit === "%" ? `${sunNumber(value, unit)}%` : `${sunNumber(value, unit)} ${unit}`;
+}
+
+function renderSunResult(state) {
+  if (!state || !state.hasResult) { $("sunResult").hidden = true; return; }
+  $("sunResult").hidden = false;
+  const shown = state.shown;
+  document.querySelectorAll("#sunPills button").forEach(b => b.classList.toggle("active", b.dataset.metric === state.metric));
+  const isDay = state.metric === "illuminance";
+  $("timeRow").hidden = !isDay || !state.times.length;
+  $("sunTime").max = Math.max(0, state.times.length - 1);
+  if (state.timeIndex !== null && state.timeIndex !== undefined) $("sunTime").value = state.timeIndex;
+  $("sunClock").textContent = state.times[state.timeIndex] || "";
+  const day = new Date(state.day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (shown) {
+    const unit = shown.stats.unit;
+    const when = isDay ? ` at ${state.times[state.timeIndex]}, ${day}` : state.metric === "sun_hours" ? `, ${day}` : ", overcast sky";
+    $("legendTitle").textContent = `${SUN_LABELS[state.metric]} (${unit})${when}`;
+    $("legendBar").style.background = `linear-gradient(90deg, ${shown.legend.map(s => `rgb(${s.color.join(",")})`).join(", ")})`;
+    const ticks = [shown.legend[0], shown.legend[Math.floor(shown.legend.length / 2)], shown.legend[shown.legend.length - 1]];
+    $("legendTicks").innerHTML = ticks.map((t, i) => `<span>${sunNumber(t.value, unit)}${i === 2 ? "+" : ""}</span>`).join("");
+    const st = shown.stats;
+    const share = st.shareAtOrAboveTarget !== undefined ? ` · ${Math.round(st.shareAtOrAboveTarget * 100)}% of the floor at ${withUnit(st.target, unit)} or more` : "";
+    $("sunStats").textContent = st.points ? `Average ${withUnit(st.mean, unit)} · max ${withUnit(st.max, unit)}${share}` : "";
+  }
+  const notes = (state.notes || []).concat(`${state.points} points in ${state.rooms.length} room${state.rooms.length === 1 ? "" : "s"}; the tiles are on the layer "Tevavid Sun Analysis".`);
+  $("sunNotes").innerHTML = notes.map(n => `<li>${escapeHtml(n)}</li>`).join("");
+}
+
+async function showSun(change) {
+  if (showing) { pendingTime = change; return; }  // keep up with a fast slider: only the latest position counts
+  showing = true;
+  try {
+    const answer = await postJson("/api/sun/show", change);
+    if (answer.error) $("sunError").textContent = answer.error; else { sun = answer; renderSunResult(sun); }
+  } finally {
+    showing = false;
+    if (pendingTime) { const next = pendingTime; pendingTime = null; showSun(next); }
+  }
+}
+
+$("sunTime").addEventListener("input", () => {
+  $("sunClock").textContent = sun && sun.times ? sun.times[$("sunTime").value] : "";
+  showSun({ timeIndex: Number($("sunTime").value) });
+});
+document.querySelectorAll("#sunPills button").forEach(b => b.onclick = () => { stopPlaying(); showSun({ metric: b.dataset.metric }); });
+
+function stopPlaying() {
+  if (playing) clearInterval(playing);
+  playing = null;
+  $("sunPlay").innerHTML = icon("play");
+}
+$("sunPlay").onclick = () => {
+  if (playing) { stopPlaying(); return; }
+  $("sunPlay").innerHTML = icon("pause");
+  playing = setInterval(() => {
+    if (showing) return;
+    const max = Number($("sunTime").max);
+    const next = Number($("sunTime").value) >= max ? 0 : Number($("sunTime").value) + 1;
+    $("sunTime").value = next;
+    $("sunClock").textContent = sun.times[next];
+    showSun({ timeIndex: next });
+  }, 450);
+};
+$("sunClear").onclick = async () => {
+  stopPlaying();
+  const answer = await postJson("/api/sun/clear");
+  if (answer.error) { $("sunError").textContent = answer.error; return; }
+  sun = null; $("sunResult").hidden = true;
+};
+
 /* ---- start --------------------------------------------------------------- */
 
 paintIcons(document);
@@ -891,8 +1167,10 @@ buildTools();
   await refreshStatus();
   const history = await loadHistory();
   if (history.items.length) chatView = "conversation";
-  const tab = ["chat", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : "chat";
-  setTab(hasKey ? tab : "settings");
+  const wanted = ["chat", "sun", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : null;
+  const first = installed.includes("assistant") ? "chat" : installed.includes("sun") ? "sun" : "settings";
+  const tab = wanted && tabAllowed(wanted) ? wanted : first;
+  setTab(!hasKey && installed.includes("assistant") && !wanted ? "settings" : tab);
   if (chatView === "home") loadRecent();
   if (history.busy) setBusy(true);
   setInterval(() => { if (!busy) refreshStatus(); }, 20000);

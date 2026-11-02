@@ -14,7 +14,7 @@ log = logging.getLogger("archicad_mcp.panel")
 
 PanelMode = Literal["full", "compact"]
 PANEL_SIZES = {"full": (420, 760), "compact": (92, 460)}
-TABS = ("chat", "tools", "library", "settings")
+TABS = ("chat", "sun", "tools", "library", "settings")
 
 
 def panel_url(ui_port: int, token: str, mode: PanelMode = "full", palette: bool = True, tab: str = "chat") -> str:

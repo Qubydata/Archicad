@@ -108,3 +108,44 @@ def test_helpful_errors(model):
     assert answer.is_error and "No rooms (zones) on the current story" in answer.content[0].text
     show = call("sun_analysis_show", {"time": "10:00"})
     assert show.is_error and "Run a sun analysis first" in show.content[0].text
+
+
+def test_panel_endpoints(model, monkeypatch, tmp_path):
+    from starlette.testclient import TestClient
+
+    from archicad_mcp.chat import config, web
+
+    monkeypatch.setattr(config, "CONFIG_DIR", tmp_path / "home")
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "home" / "config.json")
+    config.save(config.Settings(tools=["sun"]))
+    client = TestClient(web.create_app(8765, token="secret"), base_url="http://127.0.0.1:8765")
+    headers = {"x-tevavid-token": "secret"}
+
+    assert client.get("/api/status", headers=headers).json()["tools"] == ["sun"]
+    state = client.get("/api/sun", headers=headers).json()
+    assert state["hasResult"] is False and state["projectLocation"]["latitude"] == 51.5
+
+    bad = client.post("/api/sun/location", json={"latitude": 123, "longitude": 0}, headers=headers)
+    assert bad.status_code == 400
+    client.post("/api/sun/location", json={"latitude": 40.4, "longitude": -3.7, "utcOffset": 1}, headers=headers)
+    assert client.get("/api/sun", headers=headers).json()["projectLocation"]["source"] == "override"
+
+    lines = client.post("/api/sun/run", json={"date": "2026-06-21", "metric": "sun_hours"}, headers=headers).text.splitlines()
+    events = [json.loads(line) for line in lines]
+    assert events[0]["type"] == "progress" and events[-1]["type"] == "result"
+    assert events[-1]["state"]["location"]["latitude"] == 40.4 and events[-1]["state"]["tiles"] == 96
+
+    shown = client.post("/api/sun/show", json={"metric": "illuminance", "timeIndex": 3}, headers=headers).json()
+    assert shown["timeIndex"] == 3 and shown["shown"]["stats"]["unit"] == "lux"
+    client.post("/api/sun/location", json={"reset": True}, headers=headers)
+    assert client.get("/api/sun", headers=headers).json()["projectLocation"]["source"] == "project"
+    assert client.post("/api/sun/clear", json={}, headers=headers).json()["removed"] == 96
+
+    no_rooms_error = None
+    for guid in [g for g, e in model.elements.items() if e["type"] == "Zone"]:
+        del model.elements[guid]
+    for line in client.post("/api/sun/run", json={}, headers=headers).text.splitlines():
+        event = json.loads(line)
+        if event["type"] == "error":
+            no_rooms_error = event["message"]
+    assert "No rooms" in no_rooms_error

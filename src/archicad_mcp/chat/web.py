@@ -8,7 +8,10 @@ address, so other web pages open in a browser cannot drive Archicad through it.
 from __future__ import annotations
 
 import json
+import logging
+import queue
 import secrets
+import threading
 import time
 from importlib import resources
 from typing import Any
@@ -123,6 +126,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
             "models": config.MODELS,
             "efforts": config.EFFORTS,
             "busy": agent.busy,
+            "tools": settings.tools,
         })
 
     async def save_settings(request: Request) -> Response:
@@ -223,6 +227,87 @@ def create_app(port: int, token: str | None = None) -> Starlette:
     async def commands(request: Request) -> Response:
         return JSONResponse({"commands": catalog.search(request.query_params.get("q", ""), limit=40)})
 
+    # --- Sun Analysis -----------------------------------------------------------
+
+    sun = mcp_server.sun
+
+    async def sun_state(request: Request) -> Response:
+        state = sun.state()
+        try:
+            state["projectLocation"] = await anyio.to_thread.run_sync(sun.location)
+        except ArchicadError as exc:
+            state["locationError"] = str(exc)
+        return JSONResponse(state)
+
+    async def sun_location(request: Request) -> Response:
+        data = await request.json()
+        if data.get("reset"):
+            sun.location_override = None
+        else:
+            try:
+                override = {"latitude": float(data["latitude"]), "longitude": float(data["longitude"])}
+                if data.get("utcOffset") not in (None, ""):
+                    override["utcOffset"] = float(data["utcOffset"])
+            except (KeyError, TypeError, ValueError):
+                return JSONResponse({"error": "Latitude and longitude must be numbers."}, status_code=400)
+            if not (-90 <= override["latitude"] <= 90 and -180 <= override["longitude"] <= 180):
+                return JSONResponse({"error": "Latitude is -90 to 90 and longitude -180 to 180 degrees."}, status_code=400)
+            sun.location_override = override
+        return JSONResponse({"ok": True})
+
+    async def sun_run(request: Request) -> Response:
+        data = await request.json()
+        if sun.lock.locked():
+            return JSONResponse({"error": "An analysis is already running."}, status_code=409)
+        updates: queue.Queue = queue.Queue()
+
+        def work():
+            try:
+                reflect = {k: float(data[k]) for k in ("floor_reflectance", "wall_reflectance", "ceiling_reflectance") if k in data}
+                answer = sun.run(data.get("scope", "story"), data.get("date") or None, data.get("metric", "illuminance"),
+                                 float(data.get("grid", 0.5)), float(data.get("workPlane", 0.0)),
+                                 bool(data.get("includeFurniture")), reflect,
+                                 lambda fraction, message: updates.put({"type": "progress", "fraction": fraction, "message": message}))
+                updates.put({"type": "result", "state": answer})
+            except ArchicadError as exc:
+                updates.put({"type": "error", "message": str(exc)})
+            except Exception as exc:  # reported in the panel
+                logging.getLogger("archicad_mcp.sun").exception("Sun analysis failed")
+                updates.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+            updates.put(None)
+
+        threading.Thread(target=work, daemon=True).start()
+
+        async def events():
+            while True:
+                try:
+                    item = updates.get_nowait()
+                except queue.Empty:
+                    await anyio.sleep(0.1)
+                    continue
+                if item is None:
+                    break
+                yield json.dumps(item) + "\n"
+
+        return StreamingResponse(events(), media_type="application/x-ndjson")
+
+    async def sun_show(request: Request) -> Response:
+        data = await request.json()
+        scale = (data["low"], data["high"]) if data.get("low") is not None and data.get("high") is not None else None
+        time_index = data.get("timeIndex")
+        try:
+            answer = await anyio.to_thread.run_sync(
+                lambda: sun.show(data.get("metric"), int(time_index) if time_index is not None else None, scale))
+        except ArchicadError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse(answer)
+
+    async def sun_clear(request: Request) -> Response:
+        try:
+            return JSONResponse(await anyio.to_thread.run_sync(sun.clear))
+        except ArchicadError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
     async def panel_mode(request: Request) -> Response:
         """Resize the Archicad palette to the full or the compact panel, or open it."""
         data = await request.json()
@@ -250,6 +335,11 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         ("/api/library", library, ["GET"]),
         ("/api/commands", commands, ["GET"]),
         ("/api/panel", panel_mode, ["POST"]),
+        ("/api/sun", sun_state, ["GET"]),
+        ("/api/sun/location", sun_location, ["POST"]),
+        ("/api/sun/run", sun_run, ["POST"]),
+        ("/api/sun/show", sun_show, ["POST"]),
+        ("/api/sun/clear", sun_clear, ["POST"]),
     ]
     app = Starlette(routes=[
         Route("/", index),

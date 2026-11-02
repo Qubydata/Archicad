@@ -133,7 +133,7 @@ class SunAnalysis:
         done = 0
         for chunk in _chunks(elements, 100):
             answer = self.connection.tapir("Get3DGeometryOfElements", {"elements": _ids([g for g, _ in chunk])})
-            for (guid, kind), geometry in zip(chunk, answer.get("geometries3D", [])):
+            for (_, kind), geometry in zip(chunk, answer.get("geometries3D", [])):
                 if "bodies" in geometry:
                     geometries.append({"type": kind, "bodies": geometry["bodies"]})
             done += len(chunk)
