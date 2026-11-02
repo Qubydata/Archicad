@@ -7,12 +7,14 @@
 #
 # Build with:  python packaging/build.py
 
+import re
 import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parent
+VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "archicad_mcp" / "__init__.py").read_text()).group(1)
 ENTRY = str(ROOT / "packaging" / "entry.py")
 ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
@@ -52,7 +54,7 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "Tevavid Tools",
             "CFBundleDisplayName": "Tevavid Tools",
-            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleShortVersionString": VERSION,
             "LSUIElement": True,  # a background service with a panel, no Dock icon
             "NSHighResolutionCapable": True,
         },

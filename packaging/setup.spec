@@ -3,12 +3,14 @@
 # It carries the built app as payload/app.zip, made by packaging/build.py
 # before this spec runs.
 
+import re
 import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parent
+VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "archicad_mcp" / "__init__.py").read_text()).group(1)
 PAYLOAD = ROOT / "build" / "payload" / "app.zip"
 ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
@@ -33,5 +35,5 @@ if sys.platform == "darwin":
         name="Tevavid Tools Setup.app",
         icon=ICON,
         bundle_identifier="com.tevavid.setup",
-        info_plist={"CFBundleName": "Tevavid Tools Setup", "CFBundleShortVersionString": "0.1.0", "NSHighResolutionCapable": True},
+        info_plist={"CFBundleName": "Tevavid Tools Setup", "CFBundleShortVersionString": VERSION, "NSHighResolutionCapable": True},
     )
