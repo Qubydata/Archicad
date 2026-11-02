@@ -66,6 +66,8 @@
   .page .lead { margin-top: 6px; }
   .versions { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 178px; padding-right: 4px; }
   .option.soon { cursor: default; opacity: .55; }
+  .new-tag { display: inline-block; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); border-radius: 10px; padding: 0 7px; vertical-align: 1px; }
+  .update-note { margin: -4px 0 14px; padding: 9px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-strong); font-size: 14px; }
   .soon-tag { display: inline-block; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 7px; vertical-align: 1px; }
   .version .head { display: flex; align-items: center; gap: 14px; font-size: 15.5px; }
   .version .path { display: flex; gap: 10px; margin: 8px 0 0 34px; }
@@ -127,7 +129,8 @@
       <img src="../../assets/logo-256.png" alt="">
       <div><h1>Tevavid Tools</h1><p>for Archicad</p></div>
     </div>
-    <p class="intro">A growing suite of tools for Archicad. Pick the ones you want on the next screen.</p>
+    <p class="intro" id="intro">A growing suite of tools for Archicad. Pick the ones you want on the next screen.</p>
+    <div class="update-note" id="updateNote" hidden></div>
     <ul class="features">
       <li><i data-icon="check"></i><span id="supported">Works with Archicad 25 - 30</span></li>
       <li><i data-icon="chat"></i>AI Assistant: chat with your project</li>
@@ -162,8 +165,8 @@
 <!-- 3. Installing -->
 <section class="screen" id="installing" hidden>
   <div class="page">
-    <h1>Installing Tevavid Tools</h1>
-    <p class="lead">Please wait while we install Tevavid Tools and required components.</p>
+    <h1 id="installingTitle">Installing Tevavid Tools</h1>
+    <p class="lead" id="installingLead">Please wait while we install Tevavid Tools and required components.</p>
     <ul class="steps" id="steps"></ul>
     <div class="progress"><div class="bar"><div id="bar"></div></div><div class="pct" id="pct">0%</div></div>
     <div class="buttons">
@@ -211,6 +214,7 @@ let state = null;      // from Python: versions, platform...
 let targets = [];      // rows on the options screen
 let installing = false;
 let result = null;
+let existing = null;   // the installed copy, when this run updates it
 
 const api = () => window.pywebview.api;
 
@@ -263,12 +267,16 @@ function renderTools() {
   list.innerHTML = "";
   for (const tool of state.tools.filter(t => t.supported)) {
     const ready = tool.available;
+    // Updating: keep what is installed, and tick the tools that are new since then.
+    const isNew = ready && existing && !existing.offered.includes(tool.id);
+    const ticked = ready && (!existing || isNew || existing.tools.includes(tool.id));
     const row = document.createElement("label");
     row.className = `option${ready ? "" : " soon"}`;
-    row.innerHTML = `<input type="checkbox" class="cb" value="${tool.id}" ${ready ? "checked" : "disabled"}>
+    row.innerHTML = `<input type="checkbox" class="cb" value="${tool.id}" ${ticked ? "checked" : ""} ${ready ? "" : "disabled"}>
       <div><b></b><span></span></div>`;
     row.querySelector("b").textContent = tool.name;
     if (!ready) row.querySelector("b").insertAdjacentHTML("beforeend", `<span class="soon-tag">${tool.note || "Coming soon"}</span>`);
+    if (isNew) row.querySelector("b").insertAdjacentHTML("beforeend", '<span class="new-tag">New</span>');
     row.querySelector("div > span").textContent = tool.summary;
     row.querySelector("input").onchange = updateInstallButton;
     list.appendChild(row);
@@ -308,18 +316,23 @@ function finished(update) {
   const big = $("bigIcon");
   if (update.status === "done") {
     big.className = "big ok";
-    $("doneTitle").textContent = "Installation Complete!";
-    $("doneLead").textContent = "Tevavid Tools has been successfully installed.";
+    $("doneTitle").textContent = update.update ? "Update Complete!" : "Installation Complete!";
+    $("doneLead").textContent = update.update
+      ? `Tevavid Tools is updated to version ${update.version}. Your settings and conversations are kept.`
+      : "Tevavid Tools has been successfully installed.";
     $("doneChecks").hidden = false;
     const canOpen = targets.some(t => t.selected);
     $("openArchicad").disabled = !canOpen;
     $("openArchicad").checked = canOpen && !update.archicadRunning;
+    $("showGuide").checked = !update.update;
   } else {
     big.className = update.status === "cancelled" ? "big warn" : "big bad";
-    $("doneTitle").textContent = update.status === "cancelled" ? "Installation Cancelled" : "Installation Failed";
+    const what = update.update ? "Update" : "Installation";
+    $("doneTitle").textContent = update.status === "cancelled" ? `${what} Cancelled` : `${what} Failed`;
+    const kept = update.update ? ` Version ${update.previousVersion} is still installed.` : "";
     $("doneLead").textContent = update.status === "cancelled"
-      ? "No changes were made to your computer."
-      : (update.error || "Something went wrong.") + " Changes were undone.";
+      ? "No changes were made to your computer." + kept
+      : (update.error || "Something went wrong.") + " Changes were undone." + kept;
     $("doneChecks").hidden = true;
     $("finishButton").textContent = "Close";
   }
@@ -352,10 +365,35 @@ document.addEventListener("click", async event => {
   }
 });
 
+function showUpdate() {
+  // Keep the Archicad versions of the installed copy, adding the ones it was installed for by hand.
+  const before = existing.targets.map(t => t.version);
+  targets.forEach(t => { t.selected = before.includes(t.version) || (t.detected && !before.length); });
+  existing.targets.filter(t => !targets.some(row => row.version === t.version))
+    .forEach(t => targets.push({ ...t, detected: false, selected: true }));
+  $("optDesktop").checked = existing.desktopApp;
+  const same = existing.version === state.version;
+  const note = $("updateNote");
+  note.hidden = false;
+  if (existing.newer) {
+    note.textContent = `A newer version (${existing.version}) is installed. Continuing installs the older version ${state.version}.`;
+  } else if (same) {
+    note.textContent = `Version ${state.version} is installed. Continue to add or remove tools, or to repair it.`;
+  } else {
+    note.textContent = `Version ${existing.version} is installed. This updates it to ${state.version} and keeps your settings and conversations.`;
+  }
+  $("intro").textContent = "Welcome back. Your tools stay as they are, and tools added since then are ticked on the next screen.";
+  $("installButton").textContent = same ? "Apply" : (existing.newer ? "Install" : "Update");
+  $("installingTitle").textContent = "Updating Tevavid Tools";
+  $("installingLead").textContent = "Please wait while we update Tevavid Tools. It keeps working until the new version is ready.";
+}
+
 async function start() {
   state = await api().get_state();
   $("supported").textContent = `Works with Archicad ${state.supported[0]} - ${state.supported[1]}`;
+  existing = state.existing;
   targets = state.archicad.map(a => ({ ...a, selected: a.detected }));
+  if (existing) showUpdate();
   renderTools();
   renderVersions();
   if (state.screen) show(state.screen);

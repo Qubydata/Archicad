@@ -222,7 +222,14 @@ def test_pages_inline_their_images():
     assert "data:image/svg+xml;base64," in html and "data:image/png;base64," in html
 
 
-def test_launcher_dispatch(capsys):
+def test_launcher_dispatch(capsys, monkeypatch):
+    started = []
+    monkeypatch.setattr(launcher, "_setup", started.append)
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(launcher.sys, "executable", "/home/u/.tevavid-tools/updates/0.3.0/0.3.0-TevavidToolsSetup-linux")
+    launcher.main(["--silent", "--update"])
+    assert started == [["--silent", "--update"]]  # a dotted file name still runs setup, not the panel
+    monkeypatch.undo()
     assert launcher.main(["version"]) == 0
     assert capsys.readouterr().out.strip() == "0.1.0"
     assert launcher.main(["bogus"]) == 2
@@ -251,3 +258,133 @@ def test_suite_registry():
     dark = suite.tool("darkmode")
     assert not dark.available and dark.supported("win32") and not dark.supported("darwin")
     assert suite.needs_tapir(["sun"]) and not suite.needs_tapir([])
+
+
+def make_payload(path: Path, content: str) -> Path:
+    with zipfile.ZipFile(path, "w") as zf:
+        executable = zipfile.ZipInfo("TevavidTools")
+        executable.external_attr = 0o755 << 16
+        zf.writestr(executable, content)
+    return path
+
+
+def tapir_runs(system):
+    return [c for kind, c in system.commands if kind == "run"]
+
+
+def test_update_replaces_the_app_and_keeps_the_first_install_state(home, payload, tmp_path, spawned):
+    make_archicad(home, 28)
+    system = FakeSystem(home)
+    config = claude_config(system, {"archicad": {"command": "theirs"}})
+    first = Options(system.detect_archicad(), install_addon=True, desktop_app=True)
+    assert Installer(system, first, payload, downloader=fake_downloader()).run()["status"] == "done"
+    (system.data_dir / "config.json").write_text(json.dumps({"api_key": "sk-keep", "tools": ["assistant", "sun"]}))
+    assert len(tapir_runs(system)) == 1
+
+    system.commands.clear()
+    downloads = []
+    newer = make_payload(tmp_path / "v2.zip", "app v2")
+    manifest = install.read_manifest(system)
+    state = Installer(system, Options.from_manifest(manifest, "linux"), newer,
+                      downloader=fake_downloader(on_call=downloads.append)).run()
+    assert state["status"] == "done" and state["update"] and state["previousVersion"] == "0.1.0"
+    assert (system.install_dir / "TevavidTools").read_text() == "app v2"
+    assert not (system.install_dir / "_internal").exists()  # old files do not linger
+    assert not list(system.install_dir.parent.glob(".*"))  # no staging or old copy left behind
+    assert tapir_runs(system) == [] and downloads == []  # Archicad 28 has the add-on already, uv is there
+    assert json.loads((system.data_dir / "config.json").read_text())["api_key"] == "sk-keep"
+
+    updated = install.read_manifest(system)
+    assert updated["installed"] == manifest["installed"] and updated["tapirInstalled"] == [28]
+    assert sorted(a["type"] for a in updated["actions"]) == sorted(a["type"] for a in manifest["actions"])
+    install.uninstall(system)
+    assert json.loads(config.read_text())["mcpServers"]["archicad"] == {"command": "theirs"}  # not our older entry
+
+
+def test_update_adds_the_addon_only_for_new_archicad_versions(home, payload):
+    make_archicad(home, 28)
+    system = FakeSystem(home)
+    Installer(system, Options(system.detect_archicad(), desktop_app=False), payload, downloader=fake_downloader()).run()
+    make_archicad(home, 29)
+    system.commands.clear()
+    state = Installer(system, Options(system.detect_archicad(), desktop_app=False), payload, downloader=fake_downloader()).run()
+    assert state["status"] == "done"
+    assert [c[1:] for c in tapir_runs(system)] == [["--console", "--versions", "29"]]
+    assert install.read_manifest(system)["tapirInstalled"] == [28, 29]
+
+
+def test_update_removes_what_was_unticked(home, payload):
+    system = FakeSystem(home)
+    config = claude_config(system, {})
+    Installer(system, Options([], install_addon=True, desktop_app=False), payload, downloader=fake_downloader()).run()
+    script = system.tapir_scripts_dir / "Tevavid Tools.py"
+    assert script.exists() and "archicad" in json.loads(config.read_text())["mcpServers"]
+
+    state = Installer(system, Options.from_dict({"targets": [], "tools": ["assistant"], "desktopApp": False,
+                                                 "installAddon": False}),
+                      payload, downloader=fake_downloader()).run()
+    assert state["status"] == "done"
+    assert not script.exists()  # no add-on, so no palette launcher
+    assert "archicad" in json.loads(config.read_text())["mcpServers"]
+
+    Installer(system, Options.from_dict({"targets": [], "tools": ["sun"], "desktopApp": False}),
+              payload, downloader=fake_downloader()).run()
+    assert json.loads(config.read_text())["mcpServers"] == {}  # Claude Desktop is back as it was
+    assert script.exists()
+
+
+def test_failed_update_keeps_the_old_version(home, payload, tmp_path):
+    system = FakeSystem(home)
+    Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()
+    (system.data_dir / "config.json").write_text(json.dumps({"tools": ["assistant", "sun"], "api_key": "sk"}))
+    before = system.manifest_path.read_text()
+
+    broken = tmp_path / "broken.zip"
+    broken.write_text("not a zip")
+    state = Installer(system, Options.from_dict({"targets": [], "tools": ["sun"], "desktopApp": False}), broken,
+                      downloader=fake_downloader()).run()
+    assert state["status"] == "failed"
+    assert (system.install_dir / "TevavidTools").read_text() == "app"
+    assert system.manifest_path.read_text() == before
+    assert (system.tapir_scripts_dir / "Tevavid Tools.py").exists()
+
+    class Exploding(Installer):
+        def _finalize(self, progress):
+            raise RuntimeError("disk full")
+
+    newer = make_payload(tmp_path / "v2.zip", "app v2")
+    state = Exploding(system, Options.from_dict({"targets": [], "tools": ["sun"], "desktopApp": False}), newer,
+                      downloader=fake_downloader()).run()
+    assert state["status"] == "failed"
+    assert (system.install_dir / "TevavidTools").read_text() == "app"  # swapped back
+    assert json.loads((system.data_dir / "config.json").read_text())["tools"] == ["assistant", "sun"]
+    assert system.manifest_path.read_text() == before
+
+
+def test_silent_update_keeps_the_choices(home, payload, tmp_path, monkeypatch, spawned):
+    system = FakeSystem(home)
+    Installer(system, Options.from_dict({"targets": [], "tools": ["sun"], "desktopApp": False}), payload,
+              downloader=fake_downloader()).run()
+    monkeypatch.setattr(gui, "payload_path", lambda: make_payload(tmp_path / "v2.zip", "app v2"))
+    monkeypatch.setattr(install, "download", fake_downloader())
+    monkeypatch.setattr(Installer.__init__, "__defaults__", (lambda state: None, fake_downloader()))
+    assert gui.run_silent(system, update=True, relaunch=True) == 0
+    manifest = install.read_manifest(system)
+    assert manifest["tools"] == ["sun"] and manifest["options"]["desktopApp"] is False
+    assert (system.install_dir / "TevavidTools").read_text() == "app v2"
+    assert spawned == [system.app_command("panel", "--exit-with-archicad")]  # the panel comes back
+
+
+def test_setup_knows_the_installed_copy(home, payload):
+    system = FakeSystem(home)
+    assert gui.existing_install(system) is None
+    Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()
+    found = gui.existing_install(system)
+    assert found["version"] == "0.1.0" and found["tools"] == ["assistant", "sun"] and not found["newer"]
+    assert found["offered"] == ["assistant", "sun"]
+    manifest = install.read_manifest(system)
+    del manifest["offered"]  # as written by 0.1.0
+    manifest["version"] = "9.0.0"
+    system.manifest_path.write_text(json.dumps(manifest))
+    found = gui.existing_install(system)
+    assert found["offered"] == install.FIRST_RELEASE_TOOLS and found["newer"]

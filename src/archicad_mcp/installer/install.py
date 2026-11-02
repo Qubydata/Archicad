@@ -4,6 +4,12 @@ Every change the installer makes is written to a manifest
 (~/.tevavid-tools/install.json). Rollback and uninstall undo the manifest's
 actions in reverse order. The Tapir add-on is not removed on uninstall, since
 other tools may use it.
+
+Running setup again over an installed copy updates it: the new app is unpacked
+next to the old one and swapped in at the end, so a failed or cancelled update
+leaves the old version working. Components that were dropped (a tool that was
+unticked, the background service) are removed, and the Tapir add-on is only
+installed for Archicad versions that did not have it yet.
 """
 
 from __future__ import annotations
@@ -47,12 +53,25 @@ STEPS = [
 ]
 
 
+# The tools that existed before the manifest recorded "offered", so an update knows which tools are new.
+FIRST_RELEASE_TOOLS = ["assistant", "sun"]
+
+
 @dataclass
 class Options:
     targets: list[ArchicadInstall] = field(default_factory=list)
     install_addon: bool = True  # the Tapir add-on and the palette launcher, for the tools that need them
     desktop_app: bool = True
     tools: list[str] = field(default_factory=suite.default_tools)
+    relaunch: bool = False  # open the panel again when done (an update started from the panel)
+
+    @classmethod
+    def from_manifest(cls, manifest: dict[str, Any], platform: str | None = None) -> Options:
+        """The choices made at the last install, for an update that asks nothing."""
+        targets = [ArchicadInstall(int(t["version"]), str(t["path"]), bool(t.get("detected"))) for t in manifest.get("targets", [])]
+        tools = suite.clean(manifest.get("tools", suite.default_tools(platform)), platform)
+        chosen = manifest.get("options", {})
+        return cls(targets, bool(chosen.get("installAddon", suite.needs_tapir(tools))), bool(chosen.get("desktopApp", True)), tools)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Options:
@@ -132,6 +151,12 @@ class Installer:
         self.warnings: list[str] = []
         self.work = Path(tempfile.mkdtemp(prefix="tevavid-setup-"))
         self.downloads: dict[str, Path] = {}
+        self.previous = read_manifest(system)  # set when this run updates an installed copy
+        self._previous_keys = {_key(a) for a in (self.previous or {}).get("actions", [])}
+        self._staging: Path | None = None
+        self._old_dir: Path | None = None  # the replaced app, kept until the update has succeeded
+        self._settings_backup: str | None = None
+        self.tapir_done: set[int] = set()
         self._cancel = threading.Event()
         self.state: dict[str, Any] = {
             "status": "running",
@@ -139,7 +164,14 @@ class Installer:
             "steps": [{"key": s.key, "label": s.label, "state": "pending"} for s in STEPS],
             "warnings": self.warnings,
             "error": None,
+            "update": self.updating,
+            "previousVersion": (self.previous or {}).get("version"),
+            "version": __version__,
         }
+
+    @property
+    def updating(self) -> bool:
+        return self.previous is not None
 
     # --- progress -----------------------------------------------------------
 
@@ -189,6 +221,8 @@ class Installer:
             self.state["status"] = "failed"
         finally:
             shutil.rmtree(self.work, ignore_errors=True)
+            if self._staging is not None:
+                shutil.rmtree(self._staging, ignore_errors=True)
         self.on_progress(self.state)
         return self.state
 
@@ -196,7 +230,7 @@ class Installer:
 
     def _download(self, progress: Callable[[float], None]) -> None:
         wanted: list[tuple[str, str]] = []
-        if self.options.install_addon and self.options.targets:
+        if self.options.install_addon and self._tapir_targets():
             wanted.append(("tapir", f"{sysmod.TAPIR_RELEASES}/{self.system.tapir_installer_asset()}"))
         if self.options.install_addon and not self.system.has_uv():
             wanted.append(("uv", f"{sysmod.UV_RELEASES}/{self.system.uv_asset()}"))
@@ -220,25 +254,32 @@ class Installer:
         progress(0.1)
         if self.payload is not None:
             target = system.install_dir
-            if target.exists():
-                shutil.rmtree(target)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            self.actions.append({"type": "dir", "path": str(target)})
+            # Unpack next to the installed app, then swap: an update that fails keeps the old version.
+            staging = target.parent / f".{target.name}.staging"
+            shutil.rmtree(staging, ignore_errors=True)
+            staging.mkdir(parents=True)
+            self._staging = staging
+            unpacked = staging / target.name
             if system.is_mac:
                 # ditto keeps the app bundle's symlinks, permissions and signature.
-                if subprocess.run(["ditto", "-x", "-k", str(self.payload), str(target.parent)]).returncode != 0:
+                if subprocess.run(["ditto", "-x", "-k", str(self.payload), str(staging)]).returncode != 0:
                     raise InstallerError("Could not copy the app into your Applications folder.")
             else:
                 with zipfile.ZipFile(self.payload) as archive:
                     members = archive.infolist()
                     for number, member in enumerate(members):
                         self._check()
-                        extracted = Path(archive.extract(member, target))
+                        extracted = Path(archive.extract(member, unpacked))
                         mode = (member.external_attr >> 16) & 0o777
                         if mode & 0o111:  # zipfile does not restore the executable bit itself
                             extracted.chmod(mode)
                         if number % 50 == 0:
-                            progress(0.1 + 0.8 * number / max(1, len(members)))
+                            progress(0.1 + 0.75 * number / max(1, len(members)))
+            if not unpacked.exists():
+                raise InstallerError("The setup file is damaged. Download it again.")
+            self._check()
+            self._swap_in(unpacked, target)
+            self.actions.append({"type": "dir", "path": str(target)})
         progress(0.9)
         if system.is_windows:
             exe = system.app_command()[0]
@@ -281,7 +322,7 @@ class Installer:
                 self.warnings.append("Could not install uv. Tapir will offer to install it the first time you run a script.")
         progress(0.25)
 
-        # 3. The Tapir add-on itself.
+        # 3. The Tapir add-on itself, for the Archicad versions that do not have it from an earlier install.
         if not self.options.targets:
             self.warnings.append("No Archicad version was selected, so the Tapir add-on was not installed.")
             progress(1.0)
@@ -290,15 +331,17 @@ class Installer:
             progress(1.0)
             return
         installer = self._tapir_executable(self.downloads["tapir"])
-        detected = [t for t in self.options.targets if t.detected]
-        custom = [t for t in self.options.targets if not t.detected]
-        calls: list[list[str]] = []
+        wanted = self._tapir_targets()
+        detected = [t for t in wanted if t.detected]
+        custom = [t for t in wanted if not t.detected]
+        calls: list[tuple[list[str], list[int]]] = []
         if detected:
-            calls.append([installer, "--console", "--versions", ",".join(str(t.version) for t in detected)])
+            calls.append(([installer, "--console", "--versions", ",".join(str(t.version) for t in detected)],
+                          [t.version for t in detected]))
         for target in custom:
-            calls.append([installer, "--console", "--versions", str(target.version),
-                          "--addOnsFolder", str(system.addons_folder(target))])
-        for number, command in enumerate(calls):
+            calls.append(([installer, "--console", "--versions", str(target.version),
+                           "--addOnsFolder", str(system.addons_folder(target))], [target.version]))
+        for number, (command, versions) in enumerate(calls):
             self._check()
             try:
                 code = system.run(command) if not system.is_windows else system.run_elevated(command)
@@ -310,6 +353,8 @@ class Installer:
             if code != 0:
                 self.warnings.append(f"The Tapir add-on installer stopped with code {code}. "
                                      "You can install the add-on later from github.com/ENZYME-APD/tapir-archicad-automation.")
+            else:
+                self.tapir_done.update(versions)
             progress(0.25 + 0.75 * (number + 1) / len(calls))
         progress(1.0)
 
@@ -321,7 +366,8 @@ class Installer:
         # The panel shows a tab for each installed tool; existing settings (like an API key) are kept.
         settings_file = system.data_dir / "config.json"
         try:
-            settings = json.loads(settings_file.read_text(encoding="utf8"))
+            self._settings_backup = settings_file.read_text(encoding="utf8")
+            settings = json.loads(self._settings_backup)
         except (OSError, ValueError):
             settings = {"auto_open_panel": self.options.desktop_app}
         settings["tools"] = self.options.tools
@@ -346,14 +392,55 @@ class Installer:
         if self.payload is not None and not Path(system.app_command()[0]).exists():
             raise InstallerError("The Tevavid Tools app is missing after the copy. Run setup again.")
         progress(0.3)
-        self._write_manifest()
+        manifest = self._write_manifest()
+        if self.previous:
+            # What the last install added but this one did not (an unticked tool or option) is removed.
+            kept = {_key(a) for a in manifest["actions"]}
+            undo_actions(system, [a for a in self.previous.get("actions", []) if _key(a) not in kept])
+        if self._old_dir is not None:
+            shutil.rmtree(self._old_dir, ignore_errors=True)
+            self._old_dir = None
         progress(0.6)
-        if self.options.desktop_app:
-            sysmod.spawn_detached(system.app_command("panel", "--background"))
+        try:
+            if self.options.desktop_app:
+                command = system.app_command("panel", "--background")
+                sysmod.spawn_detached(command + ["--open"] if self.options.relaunch else command)
+            elif self.options.relaunch:
+                sysmod.spawn_detached(system.app_command("panel", "--exit-with-archicad"))
+        except OSError as exc:
+            log.warning("Could not start Tevavid Tools: %s", exc)
         time.sleep(0.2)
         progress(1.0)
 
     # --- helpers ------------------------------------------------------------
+
+    def _tapir_installed(self) -> set[int]:
+        """Archicad versions an earlier install already put the Tapir add-on into."""
+        if not self.previous or not self.previous.get("options", {}).get("installAddon"):
+            return set()
+        if "tapirInstalled" in self.previous:
+            return {int(v) for v in self.previous["tapirInstalled"]}
+        return {int(t["version"]) for t in self.previous.get("targets", [])}  # manifests of 0.1.0
+
+    def _tapir_targets(self) -> list[ArchicadInstall]:
+        installed = self._tapir_installed()
+        return [t for t in self.options.targets if t.version not in installed]
+
+    def _swap_in(self, unpacked: Path, target: Path) -> None:
+        old = target.parent / f".{target.name}.old"
+        shutil.rmtree(old, ignore_errors=True)
+        if target.exists():
+            for attempt in range(6):
+                try:
+                    target.rename(old)
+                    break
+                except OSError:
+                    if attempt == 5:
+                        raise InstallerError("Tevavid Tools is still in use. Close Claude Desktop and run setup again.")
+                    self.system.stop_running_app()  # Windows keeps running programs' files locked
+                    time.sleep(1)
+            self._old_dir = old
+        unpacked.rename(target)
 
     def _install_uv(self, archive: Path) -> None:
         target = self.system.uv_dir
@@ -406,22 +493,60 @@ class Installer:
             return
         self.actions.append({"type": "claude_config", "path": str(path), "previous": previous})
 
-    def _write_manifest(self) -> None:
+    def _merged_actions(self) -> list[dict[str, Any]]:
+        """This run's actions, in the order the first install made them, so uninstall can undo them all."""
+        new = {_key(a): a for a in self.actions}
+        merged = []
+        for old in (self.previous or {}).get("actions", []):
+            action = new.pop(_key(old), None)
+            if action is None:
+                continue
+            if action["type"] == "claude_config":
+                # Uninstall restores what Claude Desktop had before Tevavid Tools, not our own older entry.
+                action = {**action, "previous": old.get("previous")}
+            merged.append(action)
+        return merged + list(new.values())
+
+    def _write_manifest(self) -> dict[str, Any]:
+        previous = self.previous or {}
+        tapir = sorted(self._tapir_installed() | self.tapir_done) if self.options.install_addon else []
         manifest = {
             "version": __version__,
-            "installed": time.time(),
+            "installed": previous.get("installed", time.time()),
+            "updated": time.time(),
             "installDir": str(self.system.install_dir),
             "targets": [t.to_dict() for t in self.options.targets],
             "options": {"installAddon": self.options.install_addon, "desktopApp": self.options.desktop_app},
             "tools": self.options.tools,
-            "actions": self.actions,
+            "offered": [t.id for t in suite.TOOLS if t.available and t.supported(self.system.platform)],
+            "tapirInstalled": tapir,
+            "actions": self._merged_actions(),
         }
         self.system.data_dir.mkdir(parents=True, exist_ok=True)
         self.system.manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf8")
+        return manifest
 
     def _rollback(self) -> None:
-        undo_actions(self.system, self.actions)
+        # Undo only what this run added; what an earlier install made stays, with the old app put back.
+        undo_actions(self.system, [a for a in self.actions if _key(a) not in self._previous_keys])
+        if self._old_dir is not None and self._old_dir.exists():
+            target = self.system.install_dir
+            shutil.rmtree(target, ignore_errors=True)
+            self._old_dir.rename(target)
+            self._old_dir = None
+        if self.previous and self._settings_backup is not None:
+            (self.system.data_dir / "config.json").write_text(self._settings_backup, encoding="utf8")
         self.actions.clear()
+
+
+def _key(action: dict[str, Any]) -> tuple:
+    """What an action changed, to match the same change across installs."""
+    return action["type"], action.get("path") or action.get("key"), action.get("value")
+
+
+def offered_tools(manifest: dict[str, Any]) -> list[str]:
+    """The tools the installed copy offered, so setup can mark the newer ones as new."""
+    return manifest.get("offered", FIRST_RELEASE_TOOLS)
 
 
 def _xml(text: str) -> str:

@@ -241,10 +241,12 @@ class System:
                     pass
             time.sleep(0.5)
         if self.is_windows:
-            subprocess.run(
-                ["taskkill", "/F", "/IM", "TevavidTools.exe", "/FI", f"PID ne {os.getpid()}"],
-                capture_output=True, creationflags=0x08000000,
-            )
+            # Windows cannot replace the files of a running program: this includes the MCP server Claude Desktop started.
+            for image in ("TevavidTools.exe", "tevavid-mcp-server.exe"):
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", image, "/FI", f"PID ne {os.getpid()}"],
+                    capture_output=True, creationflags=0x08000000,
+                )
 
 
 def spawn_detached(command: list[str]) -> None:

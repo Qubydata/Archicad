@@ -11,9 +11,10 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
-from .. import suite
+from .. import __version__, suite
 from ..connection import ArchicadConnection
-from .install import STEPS, Installer, Options
+from . import system as sysmod
+from .install import STEPS, Installer, Options, offered_tools, read_manifest
 from .system import SUPPORTED_VERSIONS, ArchicadInstall, System
 
 log = logging.getLogger("archicad_mcp.installer")
@@ -56,6 +57,25 @@ def archicad_rows(system: System) -> list[dict[str, Any]]:
     return rows
 
 
+def existing_install(system: System) -> dict[str, Any] | None:
+    """What an installed copy has, so setup can offer to update it with the same choices."""
+    manifest = read_manifest(system)
+    if not manifest:
+        return None
+    return {
+        "version": manifest.get("version", "0.0.0"),
+        "tools": manifest.get("tools", []),
+        "offered": offered_tools(manifest),
+        "targets": manifest.get("targets", []),
+        "desktopApp": manifest.get("options", {}).get("desktopApp", True),
+        "newer": _version(manifest.get("version", "0")) > _version(__version__),
+    }
+
+
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split(".") if part.isdigit())
+
+
 class SetupApi:
     """Called from setup.html, mini.html and toast.html through window.pywebview.api."""
 
@@ -69,6 +89,8 @@ class SetupApi:
             "steps": [step.label for step in STEPS],
             "tools": [t.to_dict(self._app.system.platform) for t in suite.TOOLS],
             "platform": self._app.system.platform,
+            "version": __version__,
+            "existing": existing_install(self._app.system),
         }
 
     def screen_changed(self, name: str) -> None:
@@ -239,8 +261,10 @@ class SetupApp:
                 state["archicadRunning"] = bool(ArchicadConnection().discover())
             except Exception:
                 state["archicadRunning"] = False
-            if state["archicadRunning"] and self.options.install_addon:
+            if state["archicadRunning"] and self.options.install_addon and not state["update"]:
                 state["warnings"].append("Restart Archicad to load the add-on and the Tevavid panel.")
+            if state["update"] and "assistant" in self.options.tools and self.system.claude_config_path.exists():
+                state["warnings"].append("Restart Claude Desktop to use the updated AI Assistant there.")
         self.result = state
         self._push(state)
         if self.mini:
@@ -256,7 +280,8 @@ class SetupApp:
         if self.main:
             self.main.evaluate_js(f"window.setup.progress({json.dumps(state)})")
         if self.mini:
-            label = "Installing Tevavid Tools..." if state["status"] == "running" else "Tevavid Tools is installed."
+            verb = ("Updating", "updated") if state.get("update") else ("Installing", "installed")
+            label = f"{verb[0]} Tevavid Tools..." if state["status"] == "running" else f"Tevavid Tools is {verb[1]}."
             self.mini.evaluate_js(f"window.setPercent({int(state['percent'])}, {json.dumps(label)})")
 
     def _copy_guide(self) -> None:
@@ -287,11 +312,20 @@ class SetupApp:
             self.main.destroy()
 
 
-def run_silent(system: System, addon: bool, desktop_app: bool, tools: list[str] | None = None) -> int:
-    """Install without windows, for IT deployment and automated tests. Returns the exit code."""
-    tools = suite.clean(tools) if tools is not None else suite.default_tools(system.platform)
-    options = Options(system.detect_archicad(), install_addon=addon and suite.needs_tapir(tools),
-                      desktop_app=desktop_app, tools=tools)
+def run_silent(system: System, addon: bool = True, desktop_app: bool = True, tools: list[str] | None = None,
+               update: bool = False, relaunch: bool = False) -> int:
+    """Install without windows, for IT deployment, automatic updates and tests. Returns the exit code.
+
+    With update, the choices of the installed copy are kept (tools, Archicad versions, options).
+    """
+    manifest = read_manifest(system) if update else None
+    if manifest:
+        options = Options.from_manifest(manifest, system.platform)
+    else:
+        tools = suite.clean(tools) if tools is not None else suite.default_tools(system.platform)
+        options = Options(system.detect_archicad(), install_addon=addon and suite.needs_tapir(tools),
+                          desktop_app=desktop_app, tools=tools)
+    options.relaunch = relaunch
     last = {"percent": -1}
 
     def report(state: dict[str, Any]) -> None:
@@ -305,6 +339,13 @@ def run_silent(system: System, addon: bool, desktop_app: bool, tools: list[str] 
         print(f"warning: {warning}", flush=True)
     if state["status"] != "done":
         print(f"error: {state.get('error') or state['status']}", flush=True)
+        if manifest and (options.desktop_app or relaunch):
+            # The old version was put back; start it again, since setup stopped it.
+            restart = system.app_command("panel", "--background") if options.desktop_app else system.app_command("panel", "--exit-with-archicad")
+            try:
+                sysmod.spawn_detached(restart)
+            except OSError:
+                log.exception("Could not restart Tevavid Tools")
         return 1
-    print("Tevavid Tools is installed.", flush=True)
+    print(f"Tevavid Tools {'is updated to' if state['update'] else 'is installed,'} version {state['version']}.", flush=True)
     return 0
