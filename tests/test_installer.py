@@ -24,7 +24,7 @@ class FakeSystem(System):
 
     @property
     def data_dir(self) -> Path:
-        return self.home / ".archicad-mcp"
+        return self.home / ".tevavid-tools"
 
     def run(self, command, timeout=900):
         self.commands.append(("run", command))
@@ -86,7 +86,7 @@ def home(tmp_path, spawned):
 def payload(tmp_path):
     path = tmp_path / "app.zip"
     with zipfile.ZipFile(path, "w") as zf:
-        executable = zipfile.ZipInfo("ArchicadMCP")
+        executable = zipfile.ZipInfo("TevavidTools")
         executable.external_attr = 0o755 << 16
         zf.writestr(executable, "app")
         zf.writestr("_internal/data.txt", "data")
@@ -128,9 +128,9 @@ def test_full_install(home, payload, spawned):
     assert [s["state"] for s in state["steps"]] == ["done"] * 5
     assert progress == sorted(progress) and progress[-1] == 100
 
-    assert (system.install_dir / "ArchicadMCP").read_text() == "app"
-    assert (system.install_dir / "ArchicadMCP").stat().st_mode & 0o111  # still executable
-    script = system.tapir_scripts_dir / "Archicad MCP.py"
+    assert (system.install_dir / "TevavidTools").read_text() == "app"
+    assert (system.install_dir / "TevavidTools").stat().st_mode & 0o111  # still executable
+    script = system.tapir_scripts_dir / "Tevavid Tools.py"
     assert "archicad_mcp.launcher" in script.read_text() and "--exit-with-archicad" in script.read_text()
     assert (system.uv_dir / "uv").read_bytes() == b"uv binary"
 
@@ -141,7 +141,7 @@ def test_full_install(home, payload, spawned):
     saved = json.loads(config.read_text())
     assert saved["other"] == 1 and "blender" in saved["mcpServers"]
     assert saved["mcpServers"]["archicad"]["args"] == ["-m", "archicad_mcp.launcher", "mcp"]
-    assert json.loads((system.data_dir / "config.json").read_text()) == {"auto_open_panel": True}
+    assert json.loads((system.data_dir / "config.json").read_text()) == {"auto_open_panel": True, "tools": ["assistant", "sun"]}
 
     manifest = json.loads(system.manifest_path.read_text())
     assert {a["type"] for a in manifest["actions"]} == {"dir", "file", "claude_config"}
@@ -156,7 +156,7 @@ def test_uninstall_undoes_everything(home, payload):
 
     install.uninstall(system)
     assert not system.install_dir.exists()
-    assert not (system.tapir_scripts_dir / "Archicad MCP.py").exists()
+    assert not (system.tapir_scripts_dir / "Tevavid Tools.py").exists()
     assert json.loads(config.read_text())["mcpServers"]["archicad"] == {"command": "old"}  # previous entry restored
     assert not system.manifest_path.exists()
 
@@ -205,7 +205,7 @@ def test_without_addon_nothing_is_downloaded_or_run(home, payload):
     state = Installer(system, Options([], install_addon=False, desktop_app=False), payload,
                       downloader=fake_downloader(on_call=calls.append)).run()
     assert state["status"] == "done" and calls == []
-    assert not (system.tapir_scripts_dir / "Archicad MCP.py").exists()
+    assert not (system.tapir_scripts_dir / "Tevavid Tools.py").exists()
     assert [kind for kind, _ in system.commands] == ["stop"]
 
 
@@ -226,3 +226,28 @@ def test_launcher_dispatch(capsys):
     assert launcher.main(["version"]) == 0
     assert capsys.readouterr().out.strip() == "0.1.0"
     assert launcher.main(["bogus"]) == 2
+
+
+def test_only_sun_analysis_skips_claude_desktop_and_keeps_settings(home, payload):
+    system = FakeSystem(home)
+    config = claude_config(system, {"blender": {"command": "uvx"}})
+    system.data_dir.mkdir()
+    (system.data_dir / "config.json").write_text(json.dumps({"api_key": "sk-keep", "tools": ["assistant"]}))
+    options = Options.from_dict({"targets": [], "tools": ["sun", "darkmode", "bogus"], "desktopApp": False})
+    assert options.tools == ["sun"] and options.install_addon is True  # Sun Analysis needs Tapir
+    state = Installer(system, options, payload, downloader=fake_downloader()).run()
+    assert state["status"] == "done"
+    assert "archicad" not in json.loads(config.read_text())["mcpServers"]
+    saved = json.loads((system.data_dir / "config.json").read_text())
+    assert saved == {"api_key": "sk-keep", "tools": ["sun"]}
+    assert json.loads(system.manifest_path.read_text())["tools"] == ["sun"]
+
+
+def test_suite_registry():
+    from archicad_mcp import suite
+
+    assert suite.default_tools("win32") == ["assistant", "sun"]
+    assert suite.clean(["sun", "assistant", "darkmode"], "win32") == ["assistant", "sun"]  # suite order, no coming-soon
+    dark = suite.tool("darkmode")
+    assert not dark.available and dark.supported("win32") and not dark.supported("darwin")
+    assert suite.needs_tapir(["sun"]) and not suite.needs_tapir([])

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Archicad MCP</title>
+<title>Tevavid Tools</title>
 <link rel="icon" href="/assets/logo-128.png">
 <style>
   :root {
@@ -181,8 +181,8 @@
   <header class="brand">
     <img src="/assets/logo-128.png" alt="">
     <div class="name">
-      <h1>Archicad MCP</h1>
-      <p>AI Assistant for Archicad</p>
+      <h1>Tevavid Tools</h1>
+      <p>for Archicad</p>
     </div>
     <button class="icon-button" id="gear" title="Settings"><i data-icon="gear"></i></button>
     <button class="icon-button" id="kebab" title="More"><i data-icon="kebab"></i></button>
@@ -268,7 +268,7 @@
 
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
-      <div class="empty-hint" style="margin-bottom:10px">Archicad MCP is free. It works with your own Claude, in either of these ways:</div>
+      <div class="empty-hint" style="margin-bottom:10px">Tevavid Tools is free. It works with your own Claude, in either of these ways:</div>
       <div class="way">
         <h3>Use your Claude plan <span class="tag">Pro, Max, Team</span></h3>
         <p>Work on this model from Claude Desktop, at no extra cost: open Claude Desktop and ask about your Archicad project.</p>
@@ -292,7 +292,7 @@
 </div>
 
 <div id="compact" hidden>
-  <img src="/assets/logo-128.png" alt="Archicad MCP" title="Expand" data-expand="chat">
+  <img src="/assets/logo-128.png" alt="Tevavid Tools" title="Expand" data-expand="chat">
   <button class="nav active" data-expand="chat" title="Chat"><i data-icon="chat"></i></button>
   <button class="nav" data-expand="tools" title="Tools"><i data-icon="grid"></i></button>
   <button class="nav" data-expand="library" title="Library"><i data-icon="cube"></i></button>
@@ -340,7 +340,7 @@ let busy = false, hasKey = true, currentTab = "chat", chatView = "home";
 function api(path, body) {
   return fetch(path, {
     method: body === undefined ? "GET" : "POST",
-    headers: { "Content-Type": "application/json", "X-Archicad-MCP-Token": token },
+    headers: { "Content-Type": "application/json", "X-Tevavid-Token": token },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -671,7 +671,7 @@ async function send(text) {
       }
     }
   } catch (error) {
-    addMessage("error", `Lost the connection to Archicad MCP: ${error.message}`);
+    addMessage("error", `Lost the connection to Tevavid Tools: ${error.message}`);
   } finally {
     showThinking(false);
     setBusy(false);
@@ -819,7 +819,7 @@ async function refreshStatus() {
   try {
     status = await getJson("/api/status");
   } catch (error) {
-    $("homeNotice").innerHTML = '<div class="notice bad">The Archicad MCP service stopped. Open Archicad MCP again.</div>';
+    $("homeNotice").innerHTML = '<div class="notice bad">The Tevavid Tools service stopped. Open Tevavid Tools again.</div>';
     return;
   }
   hasKey = status.settings.hasKey;
@@ -839,9 +839,9 @@ async function refreshStatus() {
 
   const a = status.archicad;
   let notice = "";
-  if (!hasKey) notice = '<div class="notice">To chat here, add an Anthropic API key. With a Claude plan, use Archicad MCP from Claude Desktop instead. <button data-go="settings">Open Settings</button></div>';
+  if (!hasKey) notice = '<div class="notice">To chat here, add an Anthropic API key. With a Claude plan, use Tevavid Tools from Claude Desktop instead. <button data-go="settings">Open Settings</button></div>';
   else if (!a.connected) notice = '<div class="notice bad">Archicad is not running. Start Archicad and open a project.</div>';
-  else if (!a.tapir) notice = '<div class="notice">The Tapir add-on is not loaded, so the assistant can read but not change the model. Run the Archicad MCP installer again.</div>';
+  else if (!a.tapir) notice = '<div class="notice">The Tapir add-on is not loaded, so the assistant can read but not change the model. Run the Tevavid Tools installer again.</div>';
   $("homeNotice").innerHTML = notice;
   $("homeNotice").querySelector("[data-go]")?.addEventListener("click", () => setTab("settings"));
 
@@ -854,7 +854,7 @@ async function refreshStatus() {
 function renderDesktop(desktop) {
   const box = $("desktopState");
   if (desktop.connected) {
-    box.innerHTML = '<div class="ok">\u2713 Connected to Claude Desktop</div><div class="small">Restart Claude Desktop if you just installed Archicad MCP.</div>';
+    box.innerHTML = '<div class="ok">\u2713 Connected to Claude Desktop</div><div class="small">Restart Claude Desktop if you just installed Tevavid Tools.</div>';
   } else if (desktop.installed) {
     box.innerHTML = '<button class="secondary" id="connectDesktop">Connect to Claude Desktop</button><div class="small" id="desktopHint"></div>';
     $("connectDesktop").onclick = async () => {

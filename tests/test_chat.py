@@ -156,18 +156,18 @@ def test_web_requires_token_and_loopback_host(fake):
     app, client = make_client()
     assert client.get("/").status_code == 200
     assert client.get("/api/status").status_code == 403
-    assert client.get("/api/status", headers={"x-archicad-mcp-token": "wrong"}).status_code == 403
+    assert client.get("/api/status", headers={"x-tevavid-token": "wrong"}).status_code == 403
     evil = TestClient(app, base_url="http://evil.example:8765")
-    assert evil.get("/", headers={"x-archicad-mcp-token": "secret"}).status_code == 403
+    assert evil.get("/", headers={"x-tevavid-token": "secret"}).status_code == 403
 
-    status = client.get("/api/status", headers={"x-archicad-mcp-token": "secret"}).json()
+    status = client.get("/api/status", headers={"x-tevavid-token": "secret"}).json()
     assert status["archicad"]["connected"] is True and status["archicad"]["project"] == "Test House"
     assert status["settings"]["hasKey"] is False
 
 
 def test_web_settings_and_chat_stream(fake, monkeypatch):
     app, client = make_client()
-    headers = {"x-archicad-mcp-token": "secret"}
+    headers = {"x-tevavid-token": "secret"}
     client.post("/api/settings", json={"apiKey": "sk-abc", "model": "claude-sonnet-5-5"}, headers=headers)
     assert config.load().api_key == "sk-abc"
     assert client.get("/api/status", headers=headers).json()["settings"]["model"] == "claude-sonnet-5-5"
@@ -188,7 +188,7 @@ def test_web_reports_api_errors(fake, monkeypatch):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(app.state.agent, "_client", broken)
-    response = client.post("/api/chat", json={"message": "hi"}, headers={"x-archicad-mcp-token": "secret"})
+    response = client.post("/api/chat", json={"message": "hi"}, headers={"x-tevavid-token": "secret"})
     events = [json.loads(line) for line in response.text.splitlines()]
     assert events[0]["type"] == "error" and "boom" in events[0]["message"]
     assert events[-1] == {"type": "done"}

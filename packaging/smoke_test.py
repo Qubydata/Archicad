@@ -1,6 +1,6 @@
-"""Start an installed archicad-mcp-server the way Claude Desktop does and check it answers.
+"""Start an installed tevavid-mcp-server the way Claude Desktop does and check it answers.
 
-    python packaging/smoke_test.py <path to archicad-mcp-server>
+    python packaging/smoke_test.py <path to tevavid-mcp-server>
 """
 
 import sys

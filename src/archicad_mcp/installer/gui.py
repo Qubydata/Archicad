@@ -11,6 +11,7 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
+from .. import suite
 from ..connection import ArchicadConnection
 from .install import STEPS, Installer, Options
 from .system import SUPPORTED_VERSIONS, ArchicadInstall, System
@@ -18,6 +19,7 @@ from .system import SUPPORTED_VERSIONS, ArchicadInstall, System
 log = logging.getLogger("archicad_mcp.installer")
 UI = Path(__file__).resolve().parent / "ui"
 MAIN_SIZE = (640, 520)
+OPTIONS_SIZE = (640, 640)  # the options screen lists Archicad versions and the tools
 COMPLETE_SIZE = (640, 300)
 MINI_SIZE = (380, 118)
 TOAST_SIZE = (390, 126)
@@ -65,6 +67,7 @@ class SetupApi:
             "supported": [min(SUPPORTED_VERSIONS), max(SUPPORTED_VERSIONS)],
             "archicad": archicad_rows(self._app.system),
             "steps": [step.label for step in STEPS],
+            "tools": [t.to_dict(self._app.system.platform) for t in suite.TOOLS],
             "platform": self._app.system.platform,
         }
 
@@ -88,7 +91,7 @@ class SetupApi:
     def confirm_cancel(self) -> bool:
         if self._app.installer is None:
             return False
-        if self._app.main.create_confirmation_dialog("Cancel installation?", "Archicad MCP is not installed yet. Changes made so far will be undone."):
+        if self._app.main.create_confirmation_dialog("Cancel installation?", "Tevavid Tools is not installed yet. Changes made so far will be undone."):
             self._app.installer.cancel()
             return True
         return False
@@ -132,14 +135,14 @@ class SetupApp:
         import webview
 
         self.main = webview.create_window(
-            "Archicad MCP Setup", html=page("setup.html"), js_api=self.api,
+            "Tevavid Tools Setup", html=page("setup.html"), js_api=self.api,
             width=MAIN_SIZE[0], height=MAIN_SIZE[1], resizable=False, background_color="#FFFFFF",
         )
         self.main.events.minimized += self._on_minimized
         self.main.events.restored += self._on_restored
         self.main.events.closing += self._on_closing
         self.mini = webview.create_window(
-            "Archicad MCP Installer", html=page("mini.html"), js_api=self.api,
+            "Tevavid Tools Installer", html=page("mini.html"), js_api=self.api,
             width=MINI_SIZE[0], height=MINI_SIZE[1], frameless=True, on_top=True, hidden=True,
             resizable=False, easy_drag=False, background_color="#FFFFFF",
         )
@@ -161,6 +164,8 @@ class SetupApp:
         if name == "complete":
             warnings = len((self.result or {}).get("warnings") or [])
             self.main.resize(COMPLETE_SIZE[0], COMPLETE_SIZE[1] + 34 * warnings)
+        elif name == "options":
+            self.main.resize(*OPTIONS_SIZE)
         else:
             self.main.resize(*MAIN_SIZE)
 
@@ -213,7 +218,7 @@ class SetupApp:
 
         width, height = self._screen_size()
         self.toast = webview.create_window(
-            "Archicad MCP", html=page("toast.html"), js_api=self.api,
+            "Tevavid Tools", html=page("toast.html"), js_api=self.api,
             width=TOAST_SIZE[0], height=TOAST_SIZE[1], frameless=True, on_top=True, resizable=False,
             x=width - TOAST_SIZE[0] - 16, y=height - TOAST_SIZE[1] - 64, background_color="#1F2328", focus=False,
         )
@@ -235,7 +240,7 @@ class SetupApp:
             except Exception:
                 state["archicadRunning"] = False
             if state["archicadRunning"] and self.options.install_addon:
-                state["warnings"].append("Restart Archicad to load the add-on and the MCP panel.")
+                state["warnings"].append("Restart Archicad to load the add-on and the Tevavid panel.")
         self.result = state
         self._push(state)
         if self.mini:
@@ -251,7 +256,7 @@ class SetupApp:
         if self.main:
             self.main.evaluate_js(f"window.setup.progress({json.dumps(state)})")
         if self.mini:
-            label = "Installing Archicad MCP..." if state["status"] == "running" else "Archicad MCP is installed."
+            label = "Installing Tevavid Tools..." if state["status"] == "running" else "Tevavid Tools is installed."
             self.mini.evaluate_js(f"window.setPercent({int(state['percent'])}, {json.dumps(label)})")
 
     def _copy_guide(self) -> None:
@@ -282,9 +287,11 @@ class SetupApp:
             self.main.destroy()
 
 
-def run_silent(system: System, addon: bool, desktop_app: bool) -> int:
+def run_silent(system: System, addon: bool, desktop_app: bool, tools: list[str] | None = None) -> int:
     """Install without windows, for IT deployment and automated tests. Returns the exit code."""
-    options = Options([t for t in system.detect_archicad()], install_addon=addon, desktop_app=desktop_app)
+    tools = suite.clean(tools) if tools is not None else suite.default_tools(system.platform)
+    options = Options(system.detect_archicad(), install_addon=addon and suite.needs_tapir(tools),
+                      desktop_app=desktop_app, tools=tools)
     last = {"percent": -1}
 
     def report(state: dict[str, Any]) -> None:
@@ -299,5 +306,5 @@ def run_silent(system: System, addon: bool, desktop_app: bool) -> int:
     if state["status"] != "done":
         print(f"error: {state.get('error') or state['status']}", flush=True)
         return 1
-    print("Archicad MCP is installed.", flush=True)
+    print("Tevavid Tools is installed.", flush=True)
     return 0

@@ -1,7 +1,7 @@
 """The install steps, their progress, cancel with rollback, and uninstall.
 
 Every change the installer makes is written to a manifest
-(~/.archicad-mcp/install.json). Rollback and uninstall undo the manifest's
+(~/.tevavid-tools/install.json). Rollback and uninstall undo the manifest's
 actions in reverse order. The Tapir add-on is not removed on uninstall, since
 other tools may use it.
 """
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import __version__, claude_desktop
+from .. import __version__, claude_desktop, suite
 from . import system as sysmod
 from .system import APP_NAME, ArchicadInstall, InstallerError, System
 
@@ -50,13 +50,16 @@ STEPS = [
 @dataclass
 class Options:
     targets: list[ArchicadInstall] = field(default_factory=list)
-    install_addon: bool = True
+    install_addon: bool = True  # the Tapir add-on and the palette launcher, for the tools that need them
     desktop_app: bool = True
+    tools: list[str] = field(default_factory=suite.default_tools)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Options:
         targets = [ArchicadInstall(int(t["version"]), str(t["path"]), bool(t.get("detected"))) for t in data.get("targets", [])]
-        return cls(targets, bool(data.get("installAddon", True)), bool(data.get("desktopApp", True)))
+        tools = suite.clean(data["tools"]) if "tools" in data else suite.default_tools()
+        addon = bool(data.get("installAddon", suite.needs_tapir(tools)))
+        return cls(targets, addon, bool(data.get("desktopApp", True)), tools)
 
 
 class Cancelled(Exception):
@@ -67,7 +70,7 @@ Downloader = Callable[[str, Path, Callable[[float], None], Callable[[], bool]], 
 
 
 def download(url: str, destination: Path, progress: Callable[[float], None], cancelled: Callable[[], bool]) -> None:
-    request = urllib.request.Request(url, headers={"User-Agent": f"ArchicadMCPSetup/{__version__}"})
+    request = urllib.request.Request(url, headers={"User-Agent": f"TevavidToolsSetup/{__version__}"})
     with urllib.request.urlopen(request, timeout=60) as response, open(destination, "wb") as file:
         total = int(response.headers.get("Content-Length") or 0)
         done = 0
@@ -81,7 +84,7 @@ def download(url: str, destination: Path, progress: Callable[[float], None], can
     progress(1.0)
 
 
-LAUNCHER_SCRIPT = '''"""Opens the Archicad MCP panel. Installed by the Archicad MCP setup; run it from the Tapir palette."""
+LAUNCHER_SCRIPT = '''"""Opens the Tevavid Tools panel. Installed by the Tevavid Tools setup; run it from the Tapir palette."""
 
 import subprocess
 import sys
@@ -94,7 +97,7 @@ if sys.platform == "win32":
     subprocess.Popen(args, creationflags=0x00000008 | 0x00000200 | 0x08000000, close_fds=True)
 else:
     subprocess.Popen(args, start_new_session=True, close_fds=True)
-print("Opening the Archicad MCP panel...")
+print("Opening the Tevavid Tools panel...")
 '''
 
 LAUNCH_AGENT = """<?xml version="1.0" encoding="UTF-8"?>
@@ -127,7 +130,7 @@ class Installer:
         self.downloader = downloader
         self.actions: list[dict[str, Any]] = []
         self.warnings: list[str] = []
-        self.work = Path(tempfile.mkdtemp(prefix="archicad-mcp-setup-"))
+        self.work = Path(tempfile.mkdtemp(prefix="tevavid-setup-"))
         self.downloads: dict[str, Path] = {}
         self._cancel = threading.Event()
         self.state: dict[str, Any] = {
@@ -262,7 +265,7 @@ class Installer:
             progress(1.0)
             return
         system = self.system
-        # 1. The palette launcher: "Archicad MCP" in the Tapir palette's script list.
+        # 1. The palette launcher: "Tevavid Tools" in the Tapir palette's script list.
         script = system.tapir_scripts_dir / f"{APP_NAME}.py"
         script.parent.mkdir(parents=True, exist_ok=True)
         script.write_text(LAUNCHER_SCRIPT.format(command=system.app_command("panel")), encoding="utf8")
@@ -312,12 +315,18 @@ class Installer:
 
     def _ai(self, progress: Callable[[float], None]) -> None:
         system = self.system
-        self._configure_claude_desktop()
+        if "assistant" in self.options.tools:
+            self._configure_claude_desktop()
         progress(0.4)
+        # The panel shows a tab for each installed tool; existing settings (like an API key) are kept.
         settings_file = system.data_dir / "config.json"
-        if not settings_file.exists():
-            system.data_dir.mkdir(parents=True, exist_ok=True)
-            settings_file.write_text(json.dumps({"auto_open_panel": self.options.desktop_app}, indent=2), encoding="utf8")
+        try:
+            settings = json.loads(settings_file.read_text(encoding="utf8"))
+        except (OSError, ValueError):
+            settings = {"auto_open_panel": self.options.desktop_app}
+        settings["tools"] = self.options.tools
+        system.data_dir.mkdir(parents=True, exist_ok=True)
+        settings_file.write_text(json.dumps(settings, indent=2), encoding="utf8")
         progress(0.6)
         if self.options.desktop_app:
             command = system.app_command("panel", "--background")
@@ -335,7 +344,7 @@ class Installer:
     def _finalize(self, progress: Callable[[float], None]) -> None:
         system = self.system
         if self.payload is not None and not Path(system.app_command()[0]).exists():
-            raise InstallerError("The Archicad MCP app is missing after the copy. Run setup again.")
+            raise InstallerError("The Tevavid Tools app is missing after the copy. Run setup again.")
         progress(0.3)
         self._write_manifest()
         progress(0.6)
@@ -393,7 +402,7 @@ class Installer:
         try:
             previous = claude_desktop.connect(self.system.server_command(), path)
         except claude_desktop.ClaudeDesktopError:
-            self.warnings.append("Claude Desktop's settings file could not be read, so Archicad MCP was not added to it.")
+            self.warnings.append("Claude Desktop's settings file could not be read, so Tevavid Tools was not added to it.")
             return
         self.actions.append({"type": "claude_config", "path": str(path), "previous": previous})
 
@@ -404,6 +413,7 @@ class Installer:
             "installDir": str(self.system.install_dir),
             "targets": [t.to_dict() for t in self.options.targets],
             "options": {"installAddon": self.options.install_addon, "desktopApp": self.options.desktop_app},
+            "tools": self.options.tools,
             "actions": self.actions,
         }
         self.system.data_dir.mkdir(parents=True, exist_ok=True)
@@ -451,7 +461,7 @@ def read_manifest(system: System) -> dict[str, Any] | None:
 
 
 def uninstall(system: System) -> None:
-    """Remove what the installer added. Settings and conversations stay in ~/.archicad-mcp."""
+    """Remove what the installer added. Settings and conversations stay in ~/.tevavid-tools."""
     manifest = read_manifest(system)
     system.stop_running_app()
     actions = manifest["actions"] if manifest else []

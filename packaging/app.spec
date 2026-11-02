@@ -1,9 +1,9 @@
-# PyInstaller spec of the installed Archicad MCP app.
+# PyInstaller spec of the installed Tevavid Tools app.
 #
 # Two executables share one folder:
-#   ArchicadMCP          windowed: the panel service, background mode and uninstaller
-#   archicad-mcp-server  console:  the stdio MCP server that Claude Desktop starts
-# On macOS the folder is wrapped into "Archicad MCP.app".
+#   TevavidTools          windowed: the panel service, background mode and uninstaller
+#   tevavid-mcp-server  console:  the stdio MCP server that Claude Desktop starts
+# On macOS the folder is wrapped into "Tevavid Tools.app".
 #
 # Build with:  python packaging/build.py
 
@@ -14,7 +14,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parent
 ENTRY = str(ROOT / "packaging" / "entry.py")
-ICON = str(ROOT / "packaging" / "icons" / ("archicad-mcp.icns" if sys.platform == "darwin" else "archicad-mcp.ico"))
+ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
 datas = collect_data_files("archicad_mcp")
 hidden = collect_submodules("archicad_mcp") + collect_submodules("uvicorn")
@@ -29,29 +29,29 @@ server_analysis = analysis()
 
 app_exe = EXE(
     PYZ(app_analysis.pure), app_analysis.scripts, [],
-    exclude_binaries=True, name="ArchicadMCP", console=False, icon=ICON,
+    exclude_binaries=True, name="TevavidTools", console=False, icon=ICON,
     upx=False,
 )
 server_exe = EXE(
     PYZ(server_analysis.pure), server_analysis.scripts, [],
-    exclude_binaries=True, name="archicad-mcp-server", console=True, icon=ICON,
+    exclude_binaries=True, name="tevavid-mcp-server", console=True, icon=ICON,
     upx=False,
 )
 folder = COLLECT(
     app_exe, app_analysis.binaries, app_analysis.datas,
     server_exe, server_analysis.binaries, server_analysis.datas,
-    name="Archicad MCP", upx=False,
+    name="Tevavid Tools", upx=False,
 )
 
 if sys.platform == "darwin":
     app = BUNDLE(
         folder,
-        name="Archicad MCP.app",
+        name="Tevavid Tools.app",
         icon=ICON,
-        bundle_identifier="com.archicadmcp.app",
+        bundle_identifier="com.tevavid.app",
         info_plist={
-            "CFBundleName": "Archicad MCP",
-            "CFBundleDisplayName": "Archicad MCP",
+            "CFBundleName": "Tevavid Tools",
+            "CFBundleDisplayName": "Tevavid Tools",
             "CFBundleShortVersionString": "0.1.0",
             "LSUIElement": True,  # a background service with a panel, no Dock icon
             "NSHighResolutionCapable": True,

@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
-CONFIG_DIR = pathlib.Path(os.environ.get("ARCHICAD_MCP_HOME", pathlib.Path.home() / ".archicad-mcp"))
+from .. import suite
+
+CONFIG_DIR = pathlib.Path(os.environ.get("TEVAVID_TOOLS_HOME", pathlib.Path.home() / ".tevavid-tools"))
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 MODELS = {
@@ -24,6 +26,7 @@ class Settings:
     model: str = "claude-opus-5-5"
     effort: str = "medium"
     auto_open_panel: bool = True
+    tools: list[str] = field(default_factory=suite.default_tools)  # the suite tools picked during installation
 
     @property
     def resolved_api_key(self) -> str:
@@ -38,6 +41,7 @@ def load() -> Settings:
     settings = Settings(**{k: v for k, v in data.items() if k in Settings.__dataclass_fields__})
     if settings.model not in MODELS:
         settings.model = Settings.model
+    settings.tools = suite.clean(settings.tools) if isinstance(settings.tools, list) else suite.default_tools()
     if settings.effort not in EFFORTS:
         settings.effort = Settings.effort
     return settings

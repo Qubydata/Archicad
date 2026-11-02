@@ -1,4 +1,4 @@
-"""Local web server behind the Archicad MCP panel.
+"""Local web server behind the Tevavid Tools panel.
 
 It only listens on 127.0.0.1. Every API call must carry the session token that
 is handed to the page in its URL, and the Host header must be the loopback
@@ -27,7 +27,7 @@ from . import config, panel
 from .agent import ChatAgent
 from .history import ConversationStore
 
-TOKEN_HEADER = "x-archicad-mcp-token"
+TOKEN_HEADER = "x-tevavid-token"
 LIBRARY_TYPES = {"Object", "Lamp", "Door", "Window"}
 ASSETS = {"logo-128.png": "image/png", "logo-256.png": "image/png", "quickstart.html": "text/html; charset=utf-8"}
 
@@ -107,7 +107,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         return Response(data, media_type=ASSETS[name], headers={"Cache-Control": "max-age=3600"})
 
     async def ping(request: Request) -> Response:
-        return JSONResponse({"app": "archicad-mcp"})
+        return JSONResponse({"app": "tevavid-tools"})
 
     async def status(request: Request) -> Response:
         return JSONResponse({

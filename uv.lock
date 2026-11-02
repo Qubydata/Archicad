@@ -59,51 +59,6 @@ wheels = [
 ]
 
 [[package]]
-name = "archicad-mcp"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "anthropic" },
-    { name = "httpx" },
-    { name = "mapbox-earcut" },
-    { name = "mcp" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "starlette" },
-    { name = "uvicorn" },
-]
-
-[package.optional-dependencies]
-installer = [
-    { name = "pywebview" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pyinstaller" },
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic", specifier = ">=2.3,<3" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "mapbox-earcut", specifier = ">=1.0" },
-    { name = "mcp", specifier = ">=2.3,<3" },
-    { name = "numpy", specifier = ">=1.26" },
-    { name = "pywebview", marker = "extra == 'installer'", specifier = ">=5.3" },
-    { name = "starlette", specifier = ">=0.40" },
-    { name = "uvicorn", specifier = ">=0.30" },
-]
-provides-extras = ["installer"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pyinstaller", specifier = ">=6.10" },
-    { name = "pytest", specifier = ">=9.1.1" },
-]
-
-[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1518,6 +1473,51 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/48/bb/3d8757f21e9a53d9035c9eb039a777047139a16bfdbedfc7a58241c3d914/starlette-1.10.0.tar.gz", hash = "sha256:b8399098d4c1e3522734f7235dc79b1fc967f96cf139c81e0fa30479e0685f9b", size = 2734356, upload-time = "2026-10-24T15:04:12.342Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/2e/947cfe02def9371c07cd5bf5b6b61c829e9aecb9904db02a66cfafbc1eec/starlette-1.10.0-py3-none-any.whl", hash = "sha256:478c0ab3b4ced6e82719849c118fa406f0278a3499c1a898cd15cd31bdc38ce4", size = 80571, upload-time = "2026-10-24T15:04:10.371Z" },
+]
+
+[[package]]
+name = "tevavid-tools"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "anthropic" },
+    { name = "httpx" },
+    { name = "mapbox-earcut" },
+    { name = "mcp" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.optional-dependencies]
+installer = [
+    { name = "pywebview" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pyinstaller" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=2.3,<3" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mapbox-earcut", specifier = ">=1.0" },
+    { name = "mcp", specifier = ">=2.3,<3" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "pywebview", marker = "extra == 'installer'", specifier = ">=5.3" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
+provides-extras = ["installer"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyinstaller", specifier = ">=6.10" },
+    { name = "pytest", specifier = ">=9.1.1" },
 ]
 
 [[package]]

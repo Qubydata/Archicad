@@ -1,26 +1,30 @@
-# Archicad MCP
+# Tevavid Tools for Archicad
 
-An AI assistant for Graphisoft Archicad. You chat with it in a panel inside Archicad
-("build a 6 x 4 m room with 3 m walls", "add a window to the selected wall", "list the
-doors with their sizes") and it changes the open model for you. It is also an
-[MCP](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code, Cursor and other
-MCP clients can operate Archicad, the same way Blender MCP and the Revit MCP servers work
-for those programs.
+A growing suite of tools for Graphisoft Archicad, installed together with one setup in which you
+tick the tools you want:
+
+| Tool | What it does |
+| --- | --- |
+| **AI Assistant** | Chat with Claude in a panel inside Archicad ("build a 6 x 4 m room with 3 m walls", "add a window to the selected wall") and it changes the open model. Also an [MCP](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code, Cursor and other MCP clients can operate Archicad, the way Blender MCP and the Revit MCP servers work for those programs. |
+| **Sun Analysis** | Sunlight and daylight maps on your rooms, live in the 3D window (in progress). |
+| **Dark Mode** | A dark interface for Archicad 25 to 29 on Windows (coming soon). |
+
+Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the installer.
 
 ## For users: install
 
 1. Download the installer from the [releases page](../../releases):
-   `ArchicadMCPSetup.exe` (Windows) or `ArchicadMCPSetup-macOS.zip` (macOS).
-2. Run it and click **Next**, pick your Archicad versions, then **Install**.
-   The setup installs everything Archicad MCP needs:
-   - the Archicad MCP app,
-   - the free [Tapir add-on](https://github.com/ENZYME-APD/tapir-archicad-automation), which lets
-     the assistant create and edit elements (Windows asks for administrator permission for this step),
-   - the **MCP** panel inside Archicad,
-   - the `archicad` server in Claude Desktop, if Claude Desktop is installed,
+   `TevavidToolsSetup.exe` (Windows) or `TevavidToolsSetup-macOS.zip` (macOS).
+2. Run it and click **Next**, pick your Archicad versions and the tools you want, then **Install**.
+   Depending on the tools, the setup installs:
+   - the Tevavid Tools app,
+   - the free [Tapir add-on](https://github.com/ENZYME-APD/tapir-archicad-automation), which the
+     tools use to work with Archicad (Windows asks for administrator permission for this step),
+   - the **Tevavid** panel inside Archicad,
+   - with the AI Assistant, the `archicad` server in Claude Desktop, if Claude Desktop is installed,
    - optionally the background app, which opens the panel whenever Archicad starts.
-3. Start Archicad and open a project. The **MCP** panel appears next to the model.
-4. Archicad MCP is free and works with your own Claude, in either of two ways:
+3. Start Archicad and open a project. The **Tevavid** panel appears next to the model.
+4. The AI Assistant is free and works with your own Claude, in either of two ways:
    - **With a Claude plan (Pro, Max, Team):** use it from Claude Desktop, at no extra cost. The
      setup connects it (restart Claude Desktop once); the panel's Settings tab can also connect it.
    - **In the panel inside Archicad:** paste an Anthropic API key from
@@ -29,15 +33,15 @@ for those programs.
      apps, which is why the panel needs an API key.)
 
 Every change is a normal Archicad change, so Undo works. Uninstall from Windows Settings >
-Apps, or run `ArchicadMCP uninstall` on macOS. Settings and conversations are kept in
-`~/.archicad-mcp`. The Tapir add-on stays installed, since other tools use it.
+Apps, or run `TevavidTools uninstall` on macOS. Settings and conversations are kept in
+`~/.tevavid-tools`. The Tapir add-on stays installed, since other tools use it.
 
-For IT deployment: `ArchicadMCPSetup.exe --silent [--no-addon] [--no-desktop-app]`.
+For IT deployment: `TevavidToolsSetup.exe --silent [--tools assistant,sun] [--no-addon] [--no-desktop-app]`.
 
 ## How it works
 
 ```
- Archicad                                   Archicad MCP
+ Archicad                                   Tevavid Tools
  +--------------------------+               +-----------------------------------------+
  | JSON API (port 19723)    | <-- HTTP ---> | MCP server: 31 tools                     |
  | Tapir add-on (~430 cmds) |               |   curated: create_walls, get_elements... |
@@ -69,9 +73,9 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --extra installer
-uv run pytest                      # 38 tests; a fake Archicad stands in for the real one
-uv run archicad-mcp                # the MCP server on stdio
-uv run archicad-mcp-panel --browser   # the chat panel, in a browser
+uv run pytest                      # 50 tests; a fake Archicad stands in for the real one
+uv run tevavid-mcp                 # the MCP server on stdio
+uv run tevavid-panel --browser     # the panel, in a browser
 uv run python -m archicad_mcp.launcher setup   # the setup wizard
 ```
 
@@ -80,16 +84,16 @@ Use the server from Claude Desktop without the installer (`claude_desktop_config
 ```json
 {
   "mcpServers": {
-    "archicad": { "command": "uv", "args": ["--directory", "/path/to/Archicad", "run", "archicad-mcp"] }
+    "archicad": { "command": "uv", "args": ["--directory", "/path/to/Archicad", "run", "tevavid-mcp"] }
   }
 }
 ```
 
-Or from Claude Code: `claude mcp add archicad -- uv --directory /path/to/Archicad run archicad-mcp`.
+Or from Claude Code: `claude mcp add archicad -- uv --directory /path/to/Archicad run tevavid-mcp`.
 
 Environment variables: `ARCHICAD_PORT` (skip discovery), `ARCHICAD_HOST`, `ARCHICAD_TIMEOUT`
 (seconds, default 120), `ANTHROPIC_API_KEY` (used by the panel when no key is saved),
-`ARCHICAD_MCP_HOME` (settings folder, default `~/.archicad-mcp`).
+`TEVAVID_TOOLS_HOME` (settings folder, default `~/.tevavid-tools`).
 
 ### Building the installers
 
@@ -101,7 +105,6 @@ uninstalls again. Pushing a `v*` tag publishes them as a GitHub release.
 Before a public release:
 - Sign the Windows installer (Authenticode) so SmartScreen does not warn, and sign and notarize
   the macOS apps with an Apple Developer ID.
-- Consider your own product name. "Archicad" is a Graphisoft trademark.
 
 ### Updating the Tapir command catalog
 
@@ -115,6 +118,8 @@ src/archicad_mcp/
   server.py, connection.py, catalog.py   MCP server, Archicad JSON API client, Tapir catalog
   chat/                                  panel: agent, web service, conversations, static/index.html
   installer/                             setup wizard (ui/*.html), install engine, OS integration
+  suite.py                               the tools of the suite (what the installer offers)
+  sun/                                   Sun Analysis: sun position, geometry, shadow ray casting
   launcher.py                            entry point of the packaged apps
 packaging/                               PyInstaller specs, build and smoke test scripts, icons
 tests/                                   tests and the fake Archicad

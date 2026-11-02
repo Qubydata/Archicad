@@ -1,1 +1,1 @@
-"""The Archicad MCP setup wizard and its install engine."""
+"""The Tevavid Tools setup wizard and its install engine."""

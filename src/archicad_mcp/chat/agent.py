@@ -1,4 +1,4 @@
-"""The chat agent: Claude with the Archicad MCP tools, run in-process.
+"""The chat agent: Claude with the Tevavid Tools tools, run in-process.
 
 The agent lists the tools of the MCP server, hands them to Claude, and runs the
 tool calls Claude makes through the same server, so the chat window and an
@@ -23,7 +23,7 @@ from .config import Settings
 from .history import Conversation, ConversationStore, title_for
 
 SYSTEM_PROMPT = (
-    "You are Archicad MCP, an AI assistant built into Graphisoft Archicad. The user is an architect "
+    "You are the AI Assistant of Tevavid Tools, built into Graphisoft Archicad. The user is an architect "
     "who types what they want in a chat panel next to their model, and you carry it out with the tools.\n\n"
     + INSTRUCTIONS
     + "\nChat style:\n"

@@ -25,9 +25,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: ArchicadMCPSetup-Windows
+            artifact: TevavidToolsSetup-Windows
           - os: macos-14
-            artifact: ArchicadMCPSetup-macOS
+            artifact: TevavidToolsSetup-macOS
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -42,29 +42,29 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $setup = Start-Process dist/release/ArchicadMCPSetup.exe -ArgumentList '--silent','--no-addon','--no-desktop-app' -Wait -PassThru
-          Get-Content "$env:USERPROFILE\.archicad-mcp\setup.log" -ErrorAction SilentlyContinue
+          $setup = Start-Process dist/release/TevavidToolsSetup.exe -ArgumentList '--silent','--no-addon','--no-desktop-app' -Wait -PassThru
+          Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue
           if ($setup.ExitCode -ne 0) { throw "setup failed with $($setup.ExitCode)" }
-          $app = "$env:LOCALAPPDATA\Programs\Archicad MCP"
-          & "$app\archicad-mcp-server.exe" version
-          uv run python packaging/smoke_test.py "$app\archicad-mcp-server.exe"
-          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Archicad MCP.lnk")) { throw "no Start menu shortcut" }
-          Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArchicadMCP" | Select-Object DisplayName, DisplayVersion, UninstallString
-          $remove = Start-Process "$app\ArchicadMCP.exe" -ArgumentList 'uninstall','--quiet' -Wait -PassThru
+          $app = "$env:LOCALAPPDATA\Programs\Tevavid Tools"
+          & "$app\tevavid-mcp-server.exe" version
+          uv run python packaging/smoke_test.py "$app\tevavid-mcp-server.exe"
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Tevavid Tools.lnk")) { throw "no Start menu shortcut" }
+          Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TevavidTools" | Select-Object DisplayName, DisplayVersion, UninstallString
+          $remove = Start-Process "$app\TevavidTools.exe" -ArgumentList 'uninstall','--quiet' -Wait -PassThru
           if ($remove.ExitCode -ne 0) { throw "uninstall failed with $($remove.ExitCode)" }
           Start-Sleep -Seconds 6
-          if (Test-Path "$app\archicad-mcp-server.exe") { throw "app folder still there after uninstall" }
-          if (Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ArchicadMCP") { throw "uninstall entry still there" }
+          if (Test-Path "$app\tevavid-mcp-server.exe") { throw "app folder still there after uninstall" }
+          if (Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TevavidTools") { throw "uninstall entry still there" }
 
       - name: Install, check and uninstall (macOS)
         if: runner.os == 'macOS'
         run: |
-          ditto -x -k dist/release/ArchicadMCPSetup-macOS.zip /tmp/setup
-          "/tmp/setup/Archicad MCP Setup.app/Contents/MacOS/ArchicadMCPSetup" --silent --no-addon --no-desktop-app
-          server="$HOME/Applications/Archicad MCP.app/Contents/MacOS/archicad-mcp-server"
+          ditto -x -k dist/release/TevavidToolsSetup-macOS.zip /tmp/setup
+          "/tmp/setup/Tevavid Tools Setup.app/Contents/MacOS/TevavidToolsSetup" --silent --no-addon --no-desktop-app
+          server="$HOME/Applications/Tevavid Tools.app/Contents/MacOS/tevavid-mcp-server"
           "$server" version
           uv run python packaging/smoke_test.py "$server"
-          "$HOME/Applications/Archicad MCP.app/Contents/MacOS/ArchicadMCP" uninstall --quiet
+          "$HOME/Applications/Tevavid Tools.app/Contents/MacOS/TevavidTools" uninstall --quiet
           sleep 5
           test ! -e "$server"
 

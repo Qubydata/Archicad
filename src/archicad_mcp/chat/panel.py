@@ -24,21 +24,21 @@ def panel_url(ui_port: int, token: str, mode: PanelMode = "full", palette: bool 
 
 def _redirect_page(url: str) -> str:
     return (
-        '<!doctype html><html><head><meta charset="utf-8"><title>Archicad MCP</title></head>'
+        '<!doctype html><html><head><meta charset="utf-8"><title>Tevavid Tools</title></head>'
         '<body style="font-family:-apple-system,Segoe UI,sans-serif;padding:16px;color:#555">'
-        f'Opening Archicad MCP... <a href="{url}">Click here if nothing happens.</a>'
+        f'Opening Tevavid Tools... <a href="{url}">Click here if nothing happens.</a>'
         f"<script>location.replace({json.dumps(url)});</script></body></html>"
     )
 
 
 def show_palette(ui_port: int, token: str, mode: PanelMode = "full", tab: str = "chat") -> None:
-    """Show (or resize) the Archicad MCP palette in the connected Archicad. Raises ArchicadError."""
+    """Show (or resize) the Tevavid Tools palette in the connected Archicad. Raises ArchicadError."""
     width, height = PANEL_SIZES[mode]
     mcp_server.archicad.tapir(
         "ShowScriptUI",
         {
             "htmlContent": _redirect_page(panel_url(ui_port, token, mode, tab=tab)),
-            "title": "MCP",
+            "title": "Tevavid",
             "width": width,
             "height": height,
             "contextMenuEnabled": False,

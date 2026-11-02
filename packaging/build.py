@@ -1,11 +1,11 @@
-"""Build the Archicad MCP installer for the current platform.
+"""Build the Tevavid Tools installer for the current platform.
 
     python packaging/build.py
 
 Steps: build the app folder (app.spec), zip it as the setup payload, build the
 one-file setup (setup.spec), then copy the result to dist/release/:
-    Windows: ArchicadMCPSetup.exe
-    macOS:   ArchicadMCPSetup-macOS.zip (contains "Archicad MCP Setup.app")
+    Windows: TevavidToolsSetup.exe
+    macOS:   TevavidToolsSetup-macOS.zip (contains "Tevavid Tools Setup.app")
 """
 
 from __future__ import annotations
@@ -47,19 +47,19 @@ def main() -> None:
     pyinstaller("app.spec", "app")
     if sys.platform == "darwin":
         # ditto keeps the bundle's symlinks and code signature; the installer unpacks it the same way.
-        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(DIST / "Archicad MCP.app"), str(payload)], check=True)
+        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(DIST / "Tevavid Tools.app"), str(payload)], check=True)
     else:
-        zip_folder(DIST / "Archicad MCP", payload)
+        zip_folder(DIST / "Tevavid Tools", payload)
     print(f"payload: {payload.stat().st_size / 1e6:.1f} MB")
 
     pyinstaller("setup.spec", "setup")
     if sys.platform == "win32":
-        shutil.copy2(DIST / "ArchicadMCPSetup.exe", RELEASE / "ArchicadMCPSetup.exe")
+        shutil.copy2(DIST / "TevavidToolsSetup.exe", RELEASE / "TevavidToolsSetup.exe")
     elif sys.platform == "darwin":
-        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(DIST / "Archicad MCP Setup.app"),
-                        str(RELEASE / "ArchicadMCPSetup-macOS.zip")], check=True)
+        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(DIST / "Tevavid Tools Setup.app"),
+                        str(RELEASE / "TevavidToolsSetup-macOS.zip")], check=True)
     else:
-        shutil.copy2(DIST / "ArchicadMCPSetup", RELEASE / "ArchicadMCPSetup-linux")
+        shutil.copy2(DIST / "TevavidToolsSetup", RELEASE / "TevavidToolsSetup-linux")
     for path in RELEASE.iterdir():
         print(f"built {path} ({path.stat().st_size / 1e6:.1f} MB)")
 

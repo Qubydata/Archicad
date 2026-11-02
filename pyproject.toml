@@ -1,7 +1,7 @@
 [project]
-name = "archicad-mcp"
+name = "tevavid-tools"
 version = "0.1.0"
-description = "Operate Graphisoft Archicad from Claude: an MCP server plus a chat panel inside Archicad"
+description = "Tevavid Tools for Archicad: an AI assistant (Claude MCP), sun and daylight analysis, and more"
 readme = "README.md"
 keywords = ["archicad", "mcp", "bim", "claude", "tapir"]
 requires-python = ">=3.11"
@@ -16,8 +16,8 @@ dependencies = [
 ]
 
 [project.scripts]
-archicad-mcp = "archicad_mcp.server:main"
-archicad-mcp-panel = "archicad_mcp.chat.app:main"
+tevavid-mcp = "archicad_mcp.server:main"
+tevavid-panel = "archicad_mcp.chat.app:main"
 
 [project.optional-dependencies]
 installer = [
@@ -37,3 +37,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+
+[tool.uv.build-backend]
+module-name = "archicad_mcp"

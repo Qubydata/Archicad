@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Archicad MCP Setup</title>
+<title>Tevavid Tools Setup</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -64,7 +64,9 @@
   /* 2. options */
   .page { padding: 30px 32px 22px; display: flex; flex-direction: column; height: 100%; }
   .page .lead { margin-top: 6px; }
-  .versions { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; max-height: 196px; padding-right: 4px; }
+  .versions { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 178px; padding-right: 4px; }
+  .option.soon { cursor: default; opacity: .55; }
+  .soon-tag { display: inline-block; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0 7px; vertical-align: 1px; }
   .version .head { display: flex; align-items: center; gap: 14px; font-size: 15.5px; }
   .version .path { display: flex; gap: 10px; margin: 8px 0 0 34px; }
   .version .path input { flex: 1; min-width: 0; height: 34px; border-radius: 6px; border: 1px solid var(--field-border); background: var(--field); color: var(--muted); padding: 0 12px; font: 13.5px var(--font); }
@@ -123,14 +125,14 @@
   <div class="content">
     <div class="hero">
       <img src="../../assets/logo-256.png" alt="">
-      <div><h1>Archicad MCP</h1><p>AI Assistant for Archicad</p></div>
+      <div><h1>Tevavid Tools</h1><p>for Archicad</p></div>
     </div>
-    <p class="intro">Connect Archicad with powerful AI tools to speed up design, documentation and workflow.</p>
+    <p class="intro">A growing suite of tools for Archicad. Pick the ones you want on the next screen.</p>
     <ul class="features">
       <li><i data-icon="check"></i><span id="supported">Works with Archicad 25 - 30</span></li>
-      <li><i data-icon="chat"></i>Chat with your project</li>
-      <li><i data-icon="create"></i>Create elements, drawings and schedules</li>
-      <li><i data-icon="shield"></i>Secure and private</li>
+      <li><i data-icon="chat"></i>AI Assistant: chat with your project</li>
+      <li><i data-icon="sun"></i>Sun Analysis: live daylight maps</li>
+      <li><i data-icon="plus"></i>More tools added over time</li>
     </ul>
     <div class="buttons">
       <button class="btn" data-action="cancel">Cancel</button>
@@ -143,14 +145,13 @@
 <section class="screen" id="options" hidden>
   <div class="page">
     <h1>Choose Installation Options</h1>
-    <p class="lead">Select which Archicad versions to install the MCP for:</p>
+    <p class="lead">Select which Archicad versions to install the tools for:</p>
     <div class="versions" id="versions"></div>
     <hr>
-    <h2>Additional options</h2>
-    <label class="option"><input type="checkbox" class="cb" id="optAddon" checked>
-      <div><b>Install Archicad Add-on</b><span>Adds MCP panel inside Archicad</span></div></label>
+    <h2>Tools</h2>
+    <div id="toolList"></div>
     <label class="option"><input type="checkbox" class="cb" id="optDesktop" checked>
-      <div><b>Install Desktop App (optional)</b><span>Runs in the background for faster performance</span></div></label>
+      <div><b>Open the panel when Archicad starts</b><span>Runs in the background for faster performance</span></div></label>
     <div class="buttons">
       <button class="btn" data-action="back">Back</button>
       <button class="btn primary" data-action="install" id="installButton">Install</button>
@@ -161,8 +162,8 @@
 <!-- 3. Installing -->
 <section class="screen" id="installing" hidden>
   <div class="page">
-    <h1>Installing Archicad MCP</h1>
-    <p class="lead">Please wait while we install Archicad MCP and required components.</p>
+    <h1>Installing Tevavid Tools</h1>
+    <p class="lead">Please wait while we install Tevavid Tools and required components.</p>
     <ul class="steps" id="steps"></ul>
     <div class="progress"><div class="bar"><div id="bar"></div></div><div class="pct" id="pct">0%</div></div>
     <div class="buttons">
@@ -177,7 +178,7 @@
     <div class="big ok" id="bigIcon"></div>
     <div class="done-text">
       <h1 id="doneTitle">Installation Complete!</h1>
-      <p class="lead" id="doneLead">Archicad MCP has been successfully installed.</p>
+      <p class="lead" id="doneLead">Tevavid Tools has been successfully installed.</p>
       <ul class="notes" id="notes" hidden></ul>
       <div class="done-row">
         <div class="checks" id="doneChecks">
@@ -196,6 +197,8 @@ const ICONS = {
   check: '<rect width="18" height="18" x="3" y="3" rx="3"/><path d="m8.5 12 2.5 2.5 5-5"/>',
   chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   create: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 12v6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  plus: '<rect width="18" height="18" x="3" y="3" rx="3"/><path d="M8 12h8"/><path d="M12 8v8"/>',
   shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
 };
 document.querySelectorAll("i[data-icon]").forEach(el => {
@@ -251,12 +254,33 @@ function renderVersions() {
   updateInstallButton();
 }
 
-function updateInstallButton() {
-  const any = targets.some(t => t.selected);
-  // Without an Archicad version the add-on cannot be installed, but the app and Claude Desktop setup still can.
-  $("installButton").disabled = !any && $("optAddon").checked;
+function chosenTools() {
+  return Array.from(document.querySelectorAll("#toolList input:checked")).map(box => box.value);
 }
-$("optAddon").onchange = updateInstallButton;
+
+function renderTools() {
+  const list = $("toolList");
+  list.innerHTML = "";
+  for (const tool of state.tools.filter(t => t.supported)) {
+    const ready = tool.available;
+    const row = document.createElement("label");
+    row.className = `option${ready ? "" : " soon"}`;
+    row.innerHTML = `<input type="checkbox" class="cb" value="${tool.id}" ${ready ? "checked" : "disabled"}>
+      <div><b></b><span></span></div>`;
+    row.querySelector("b").textContent = tool.name;
+    if (!ready) row.querySelector("b").insertAdjacentHTML("beforeend", `<span class="soon-tag">${tool.note || "Coming soon"}</span>`);
+    row.querySelector("div > span").textContent = tool.summary;
+    row.querySelector("input").onchange = updateInstallButton;
+    list.appendChild(row);
+  }
+}
+
+function updateInstallButton() {
+  const tools = chosenTools();
+  const needsArchicad = state.tools.some(t => tools.includes(t.id) && t.needs_tapir);
+  // A tool must be picked, and the tools that work inside Archicad need an Archicad version.
+  $("installButton").disabled = !tools.length || (needsArchicad && !targets.some(t => t.selected));
+}
 
 function renderSteps(steps) {
   $("steps").innerHTML = steps.map(s => {
@@ -285,7 +309,7 @@ function finished(update) {
   if (update.status === "done") {
     big.className = "big ok";
     $("doneTitle").textContent = "Installation Complete!";
-    $("doneLead").textContent = "Archicad MCP has been successfully installed.";
+    $("doneLead").textContent = "Tevavid Tools has been successfully installed.";
     $("doneChecks").hidden = false;
     const canOpen = targets.some(t => t.selected);
     $("openArchicad").disabled = !canOpen;
@@ -315,7 +339,7 @@ document.addEventListener("click", async event => {
     show("installing");
     api().install({
       targets: targets.filter(t => t.selected).map(({ version, path, detected }) => ({ version, path, detected })),
-      installAddon: $("optAddon").checked,
+      tools: chosenTools(),
       desktopApp: $("optDesktop").checked,
     });
   }
@@ -332,6 +356,7 @@ async function start() {
   state = await api().get_state();
   $("supported").textContent = `Works with Archicad ${state.supported[0]} - ${state.supported[1]}`;
   targets = state.archicad.map(a => ({ ...a, selected: a.detected }));
+  renderTools();
   renderVersions();
   if (state.screen) show(state.screen);
 }

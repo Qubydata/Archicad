@@ -1,9 +1,9 @@
 """Entry point of the packaged apps.
 
-    ArchicadMCPSetup            the setup wizard (also: setup --silent [--no-addon] [--no-desktop-app])
-    ArchicadMCP panel [...]     open the Archicad MCP panel (see archicad-mcp-panel --help)
-    ArchicadMCP uninstall       remove Archicad MCP (--quiet: no dialogs)
-    archicad-mcp-server         the stdio MCP server for Claude Desktop and other MCP clients
+    TevavidToolsSetup            the setup wizard; for IT: --silent [--tools assistant,sun] [--no-addon] [--no-desktop-app]
+    TevavidTools panel [...]     open the Tevavid Tools panel (see tevavid-panel --help)
+    TevavidTools uninstall       remove Tevavid Tools (--quiet: no dialogs)
+    tevavid-mcp-server         the stdio MCP server for Claude Desktop and other MCP clients
     ... mcp                     the same server, from any of the executables
 """
 
@@ -46,7 +46,10 @@ def _setup(args: list[str]) -> int:
     if "--silent" in args:
         from .installer.gui import run_silent
 
-        return run_silent(system, addon="--no-addon" not in args, desktop_app="--no-desktop-app" not in args)
+        tools = None
+        if "--tools" in args and args.index("--tools") + 1 < len(args):
+            tools = [t.strip() for t in args[args.index("--tools") + 1].split(",") if t.strip()]
+        return run_silent(system, addon="--no-addon" not in args, desktop_app="--no-desktop-app" not in args, tools=tools)
     from .installer.gui import SetupApp
 
     SetupApp(system).run()
@@ -58,11 +61,11 @@ def _uninstall(args: list[str]) -> int:
     from .installer.system import System
 
     quiet = "--quiet" in args
-    if not quiet and not _message("Uninstall Archicad MCP", "Remove Archicad MCP from this computer? Your settings and conversations are kept.", question=True):
+    if not quiet and not _message("Uninstall Tevavid Tools", "Remove Tevavid Tools from this computer? Your settings and conversations are kept.", question=True):
         return 1
     uninstall(System())
     if not quiet:
-        _message("Archicad MCP", "Archicad MCP was removed. The Tapir add-on stays installed in Archicad.")
+        _message("Tevavid Tools", "Tevavid Tools was removed. The Tapir add-on stays installed in Archicad.")
     return 0
 
 

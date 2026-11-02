@@ -17,13 +17,13 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-APP_NAME = "Archicad MCP"
-APP_ID = "ArchicadMCP"
-PUBLISHER = "Archicad MCP"
+APP_NAME = "Tevavid Tools"
+APP_ID = "TevavidTools"
+PUBLISHER = "Tevavid Tools"
 SUPPORTED_VERSIONS = range(25, 31)  # what the Tapir add-on supports
 TAPIR_RELEASES = "https://github.com/ENZYME-APD/tapir-archicad-automation/releases/latest/download"
 UV_RELEASES = "https://github.com/astral-sh/uv/releases/latest/download"
-LAUNCH_AGENT_LABEL = "com.archicadmcp.panel"
+LAUNCH_AGENT_LABEL = "com.tevavid.panel"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 UNINSTALL_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{APP_ID}"
 
@@ -66,11 +66,11 @@ class System:
             return base / "Programs" / APP_NAME
         if self.is_mac:
             return self.home / "Applications" / f"{APP_NAME}.app"
-        return self.home / ".local" / "share" / "archicad-mcp" / "app"
+        return self.home / ".local" / "share" / "tevavid-tools" / "app"
 
     @property
     def data_dir(self) -> Path:
-        return Path(os.environ.get("ARCHICAD_MCP_HOME", self.home / ".archicad-mcp"))
+        return Path(os.environ.get("TEVAVID_TOOLS_HOME", self.home / ".tevavid-tools"))
 
     @property
     def manifest_path(self) -> Path:
@@ -122,15 +122,15 @@ class System:
         return self.install_dir / (f"{name}.exe" if self.is_windows else name)
 
     def app_command(self, *args: str) -> list[str]:
-        """Command line of the installed Archicad MCP app (the panel and service)."""
+        """Command line of the installed Tevavid Tools app (the panel and service)."""
         if self.frozen:
-            return [str(self.installed_executable("ArchicadMCP")), *args]
+            return [str(self.installed_executable("TevavidTools")), *args]
         return [sys.executable, "-m", "archicad_mcp.launcher", *args]
 
     def server_command(self) -> list[str]:
         """Command line of the stdio MCP server, for Claude Desktop and other MCP clients."""
         if self.frozen:
-            return [str(self.installed_executable("archicad-mcp-server"))]
+            return [str(self.installed_executable("tevavid-mcp-server"))]
         return [sys.executable, "-m", "archicad_mcp.launcher", "mcp"]
 
     def has_uv(self) -> bool:
@@ -223,7 +223,7 @@ class System:
         return self.run(command, timeout)
 
     def stop_running_app(self) -> None:
-        """Stop a running Archicad MCP service so its files can be replaced."""
+        """Stop a running Tevavid Tools service so its files can be replaced."""
         import json
 
         session = self.data_dir / "session.json"
@@ -242,7 +242,7 @@ class System:
             time.sleep(0.5)
         if self.is_windows:
             subprocess.run(
-                ["taskkill", "/F", "/IM", "ArchicadMCP.exe", "/FI", f"PID ne {os.getpid()}"],
+                ["taskkill", "/F", "/IM", "TevavidTools.exe", "/FI", f"PID ne {os.getpid()}"],
                 capture_output=True, creationflags=0x08000000,
             )
 

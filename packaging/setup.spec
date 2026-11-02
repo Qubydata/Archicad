@@ -1,4 +1,4 @@
-# PyInstaller spec of the one-file setup program (ArchicadMCPSetup.exe / "Archicad MCP Setup.app").
+# PyInstaller spec of the one-file setup program (TevavidToolsSetup.exe / "Tevavid Tools Setup.app").
 #
 # It carries the built app as payload/app.zip, made by packaging/build.py
 # before this spec runs.
@@ -10,7 +10,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parent
 PAYLOAD = ROOT / "build" / "payload" / "app.zip"
-ICON = str(ROOT / "packaging" / "icons" / ("archicad-mcp.icns" if sys.platform == "darwin" else "archicad-mcp.ico"))
+ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
 if not PAYLOAD.exists():
     raise SystemExit(f"{PAYLOAD} is missing: run python packaging/build.py")
@@ -23,15 +23,15 @@ analysis = Analysis(
 )
 exe = EXE(
     PYZ(analysis.pure), analysis.scripts, analysis.binaries, analysis.datas, [],
-    name="ArchicadMCPSetup", console=False, icon=ICON, upx=False,
+    name="TevavidToolsSetup", console=False, icon=ICON, upx=False,
     uac_admin=False,  # elevation is asked only for the Tapir add-on step
 )
 
 if sys.platform == "darwin":
     app = BUNDLE(
         exe,
-        name="Archicad MCP Setup.app",
+        name="Tevavid Tools Setup.app",
         icon=ICON,
-        bundle_identifier="com.archicadmcp.setup",
-        info_plist={"CFBundleName": "Archicad MCP Setup", "CFBundleShortVersionString": "0.1.0", "NSHighResolutionCapable": True},
+        bundle_identifier="com.tevavid.setup",
+        info_plist={"CFBundleName": "Tevavid Tools Setup", "CFBundleShortVersionString": "0.1.0", "NSHighResolutionCapable": True},
     )

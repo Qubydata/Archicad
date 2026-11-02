@@ -1,4 +1,4 @@
-"""`archicad-mcp-panel`: run the Archicad MCP service and open its panel.
+"""`tevavid-panel`: run the Tevavid Tools service and open its panel.
 
 The panel opens inside Archicad as a Tapir Script UI palette when the Tapir
 add-on is loaded, otherwise in the default web browser. Running the command
@@ -34,13 +34,13 @@ log = logging.getLogger("archicad_mcp")
 
 
 def running_session(ui_port: int) -> dict | None:
-    """The session of an Archicad MCP service already listening on ui_port, if any."""
+    """The session of an Tevavid Tools service already listening on ui_port, if any."""
     try:
         session = json.loads(SESSION_FILE.read_text(encoding="utf8"))
         if session.get("port") != ui_port:
             return None
         with urllib.request.urlopen(f"http://127.0.0.1:{ui_port}/api/ping", timeout=1) as response:
-            if json.loads(response.read()).get("app") == "archicad-mcp":
+            if json.loads(response.read()).get("app") == "tevavid-tools":
                 return session
     except (OSError, ValueError):
         pass
@@ -91,7 +91,7 @@ class ArchicadWatcher:
         elif self.exit_when_gone and self.seen_any:
             self.missing_since = self.missing_since or time.monotonic()
             if time.monotonic() - self.missing_since > 60:
-                log.info("Archicad is gone, stopping the Archicad MCP service")
+                log.info("Archicad is gone, stopping the Tevavid Tools service")
                 self.server.should_exit = True
         if not (self.auto_open and self.settings.auto_open_panel):
             return
@@ -117,9 +117,9 @@ class ArchicadWatcher:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Open the Archicad MCP panel: chat with Claude to change your model.")
+    parser = argparse.ArgumentParser(description="Open the Tevavid Tools panel: chat with Claude to change your model.")
     parser.add_argument("--port", type=int, help="Archicad JSON API port (default: find it automatically)")
-    parser.add_argument("--ui-port", type=int, default=int(os.environ.get("ARCHICAD_MCP_PANEL_PORT", "8765")))
+    parser.add_argument("--ui-port", type=int, default=int(os.environ.get("TEVAVID_PANEL_PORT", "8765")))
     parser.add_argument("--browser", action="store_true", help="open in the web browser instead of an Archicad palette")
     parser.add_argument("--background", action="store_true", help="keep running and open the panel when Archicad starts")
     parser.add_argument("--no-open", action="store_true", help="only start the service")
@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> None:
     session = running_session(args.ui_port)
     if session:
         if not args.no_open and not args.background:
-            print(f"Archicad MCP is already running, opened in the {ask_running_service(session, args.port, args.browser)}.")
+            print(f"Tevavid Tools is already running, opened in the {ask_running_service(session, args.port, args.browser)}.")
         return
 
     token = secrets.token_urlsafe(24)
@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> None:
             time.sleep(0.1)
         if server.started and not args.no_open and not args.background:
             where = panel.open_panel(args.ui_port, token, browser=args.browser)
-            print(f"Archicad MCP is running on port {args.ui_port} (opened in the {where}).")
+            print(f"Tevavid Tools is running on port {args.ui_port} (opened in the {where}).")
 
     threading.Thread(target=open_when_ready, daemon=True).start()
     watcher = ArchicadWatcher(

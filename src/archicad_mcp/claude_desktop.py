@@ -1,4 +1,4 @@
-"""The Archicad MCP entry in Claude Desktop's settings file.
+"""The Tevavid Tools entry in Claude Desktop's settings file.
 
 With it, people can work on their Archicad model from Claude Desktop with
 their own Claude plan (Pro, Max, Team...), at no extra cost.
