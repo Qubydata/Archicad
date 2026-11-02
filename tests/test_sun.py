@@ -132,3 +132,59 @@ def test_matches_brute_force_on_a_random_city():
     for i in range(0, 300, 7):
         for k in range(12):
             assert fast[i, k] == _brute_force(points[i], directions[k], scene), (i, k)
+
+
+def wall_with_opening(x0, x1, y0, y1, height, ox0, ox1, oz0, oz1):
+    """A wall along x with a rectangular opening, as Archicad reports it: faces with holes, plus reveals."""
+    pts = []
+    for y in (y0, y1):
+        pts += [(x0, y, 0), (x1, y, 0), (x1, y, height), (x0, y, height), (ox0, y, oz0), (ox1, y, oz0), (ox1, y, oz1), (ox0, y, oz1)]
+    vertices = [{"x": a, "y": b, "z": c} for a, b, c in pts]
+    outer = {"vertexIds": [0, 1, 2, 3], "holes": [{"vertexIds": [7, 6, 5, 4]}]}
+    inner = {"vertexIds": [11, 10, 9, 8], "holes": [{"vertexIds": [12, 13, 14, 15]}]}
+    caps = [[0, 8, 9, 1], [3, 2, 10, 11], [0, 3, 11, 8], [1, 9, 10, 2]]
+    reveals = [[4, 5, 13, 12], [5, 6, 14, 13], [6, 7, 15, 14], [7, 4, 12, 15]]
+    return {"vertices": vertices, "polygons": [outer, inner] + [{"vertexIds": f} for f in caps + reveals]}
+
+
+def test_room_daylight_is_plausible():
+    from archicad_mcp.sun.daylight import Room, Settings, analyze
+
+    def scene(window):
+        t, h = 0.2, 3.0
+        bodies = [box(-t, 6, 0, 4 + t, 6 + t, h), box(-t, -t, 0, 0, 6 + t, h), box(4, -t, 0, 4 + t, 6 + t, h),
+                  box(-t, -t, h, 4 + t, 6 + t, h + 0.3), box(-t, -t, -0.3, 4 + t, 6 + t, 0),
+                  wall_with_opening(0, 4, -t, 0, h, 1, 3, 0.9, 2.4)]
+        elements = [{"type": "Wall", "bodies": bodies}]
+        if window == "glass without a material":
+            elements.append({"type": "Window", "bodies": [box(1, -0.11, 0.9, 3, -0.09, 2.4)]})
+        return build_scene(elements)
+
+    room = Room("r1", "Living", [(0, 0), (4, 0), (4, 6), (0, 6)], floor_z=0.0, height=3.0)
+    london = Location(51.5, -0.12, utc_offset=0)
+    results = {}
+    for window in ("open", "glass without a material"):
+        s = scene(window)
+        r = analyze(s, [room], london, date(2026, 3, 20), Settings(grid=0.5))
+        noon = min(range(len(r.samples)), key=lambda i: abs(r.samples[i].time.hour - 12) * 60 + r.samples[i].time.minute)
+        df, lux = r.daylight_factor(), r.illuminance(noon)
+        front, back = r.points[:, 1] < 1.5, r.points[:, 1] > 4.5
+        results[window] = (df[front].mean(), df[back].mean(), lux[back].mean(), len(s.glass))
+        assert df[front].mean() > df[back].mean() > 0.3  # brighter near the window, reflected light at the back
+        assert 1.0 < df.mean() < 5.0  # a 2 x 1.5 m window in a 4 x 6 m room
+        assert 2.5 < r.sun_hours().max() < 6.0  # equinox sun through a south window
+    assert results["open"][3] == 1  # the wall opening, counted once although both wall faces report it
+    assert results["glass without a material"][0] < results["open"][0]  # the pane takes its 30%
+    assert results["glass without a material"][1] < results["open"][1]  # also for the reflected light at the back
+    assert results["glass without a material"][3] == 1  # the pane only: its opening is not counted again
+
+
+def test_window_without_recognizable_glass_assumes_glazing_and_says_so():
+    frame = box(1, -0.25, 0.9, 3, 0.05, 2.4)  # a solid block filling the opening, no thin pane in it
+    s = build_scene([{"type": "Wall", "bodies": [wall_with_opening(0, 4, -0.2, 0, 3, 1, 3, 0.9, 2.4)]},
+                     {"type": "Window", "bodies": [frame]}])
+    assert [(g["transmission"], g["open"]) for g in s.glass] == [(0.7, False)]
+    assert "no recognizable glass" in s.notes[0]
+    door = build_scene([{"type": "Wall", "bodies": [wall_with_opening(0, 4, -0.2, 0, 3, 1, 2, 0, 2.1)]},
+                        {"type": "Door", "bodies": [box(1, -0.15, 0, 2, -0.1, 2.1)]}])
+    assert door.glass == []  # a closed door lets no light in
