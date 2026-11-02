@@ -23,9 +23,10 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from .. import catalog, claude_desktop
+from .. import __version__, catalog, claude_desktop
 from .. import server as mcp_server
 from ..connection import ArchicadError
+from ..updater import UpdateError, Updater
 from . import config, panel
 from .agent import ChatAgent
 from .history import ConversationStore
@@ -73,9 +74,11 @@ def _library_parts() -> list[dict[str, str]]:
     return [{"name": name, "type": kind} for name, kind in sorted(found) if name]
 
 
-def create_app(port: int, token: str | None = None) -> Starlette:
+def create_app(port: int, token: str | None = None, updater: Updater | None = None) -> Starlette:
     token = token or secrets.token_urlsafe(24)
     settings = config.load()
+    updater = updater or Updater(config.CONFIG_DIR)
+    update_job: dict[str, Any] = {"running": False, "error": None, "installing": False}
     agent = ChatAgent(mcp_server.mcp, settings, ConversationStore(config.CONFIG_DIR / "conversations"))
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     library_cache: dict[str, Any] = {}
@@ -119,6 +122,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
                 "model": settings.model,
                 "effort": settings.effort,
                 "autoOpenPanel": settings.auto_open_panel,
+                "autoUpdate": settings.auto_update,
                 "hasKey": bool(settings.resolved_api_key),
                 "keyFromEnvironment": not settings.api_key and bool(settings.resolved_api_key),
             },
@@ -127,6 +131,7 @@ def create_app(port: int, token: str | None = None) -> Starlette:
             "efforts": config.EFFORTS,
             "busy": agent.busy,
             "tools": settings.tools,
+            "version": __version__,
         })
 
     async def save_settings(request: Request) -> Response:
@@ -139,6 +144,8 @@ def create_app(port: int, token: str | None = None) -> Starlette:
             settings.effort = data["effort"]
         if isinstance(data.get("autoOpenPanel"), bool):
             settings.auto_open_panel = data["autoOpenPanel"]
+        if isinstance(data.get("autoUpdate"), bool):
+            settings.auto_update = data["autoUpdate"]
         config.save(settings)
         return JSONResponse({"ok": True})
 
@@ -308,6 +315,42 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         except ArchicadError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
 
+    def update_status() -> dict[str, Any]:
+        return {**updater.status(), "autoUpdate": settings.auto_update, "job": dict(update_job)}
+
+    async def update_state(request: Request) -> Response:
+        return JSONResponse(await anyio.to_thread.run_sync(update_status))
+
+    async def update_check(request: Request) -> Response:
+        await anyio.to_thread.run_sync(lambda: updater.check(force=True))
+        return JSONResponse(update_status())
+
+    async def update_install(request: Request) -> Response:
+        """Download the update (the panel polls /api/update for progress), then let setup replace this app."""
+        if update_job["running"]:
+            return JSONResponse(update_status())
+
+        def work():
+            update_job.update(running=True, error=None)
+            try:
+                updater.download()
+                try:
+                    archicad_open = bool(mcp_server.archicad.discover())
+                except Exception:
+                    archicad_open = True
+                update_job["installing"] = True
+                updater.install(relaunch=archicad_open)  # setup stops this service and opens the new panel
+            except UpdateError as exc:
+                update_job.update(error=str(exc), installing=False)
+            except Exception as exc:  # shown in the panel
+                logging.getLogger("archicad_mcp.updater").exception("Update failed")
+                update_job.update(error=f"{type(exc).__name__}: {exc}", installing=False)
+            finally:
+                update_job["running"] = False
+
+        threading.Thread(target=work, daemon=True).start()
+        return JSONResponse({**update_status(), "job": {**update_job, "running": True}})
+
     async def panel_mode(request: Request) -> Response:
         """Resize the Archicad palette to the full or the compact panel, or open it."""
         data = await request.json()
@@ -340,6 +383,9 @@ def create_app(port: int, token: str | None = None) -> Starlette:
         ("/api/sun/run", sun_run, ["POST"]),
         ("/api/sun/show", sun_show, ["POST"]),
         ("/api/sun/clear", sun_clear, ["POST"]),
+        ("/api/update", update_state, ["GET"]),
+        ("/api/update/check", update_check, ["POST"]),
+        ("/api/update/install", update_install, ["POST"]),
     ]
     app = Starlette(routes=[
         Route("/", index),
@@ -350,4 +396,5 @@ def create_app(port: int, token: str | None = None) -> Starlette:
     app.state.token = token
     app.state.agent = agent
     app.state.settings = settings
+    app.state.updater = updater
     return app

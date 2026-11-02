@@ -81,9 +81,11 @@ class ArchicadWatcher:
         self.opened: set[int] = set()
         self.seen_any = False
         self.missing_since: float | None = None
+        self.archicad_running = True  # until the first scan says otherwise
 
     def scan_once(self) -> None:
         ports = {instance.port for instance in ArchicadConnection(host=mcp_server.archicad.host).discover()}
+        self.archicad_running = bool(ports)
         self.opened &= ports  # an Archicad that quit gets the panel again when it restarts
         if ports:
             self.seen_any = True
@@ -116,6 +118,32 @@ class ArchicadWatcher:
             time.sleep(self.interval)
 
 
+class UpdateLoop:
+    """Checks for updates once a day; with automatic updates on, installs them while Archicad is closed."""
+
+    def __init__(self, server: uvicorn.Server, updater, settings: config.Settings, watcher: ArchicadWatcher | None,
+                 first_delay: float = 60.0, interval: float = 3600.0) -> None:
+        self.server = server
+        self.updater = updater
+        self.settings = settings
+        self.watcher = watcher
+        self.first_delay = first_delay
+        self.interval = interval
+
+    def run(self) -> None:
+        self.updater.after_start()
+        delay = self.first_delay
+        while not self.server.should_exit:
+            time.sleep(delay)
+            delay = self.interval
+            try:
+                running = self.watcher.archicad_running if self.watcher else True
+                if self.updater.tick(archicad_running=running, automatic=self.settings.auto_update) == "installing":
+                    log.info("Installing an update; setup restarts Tevavid Tools")
+            except Exception:  # never let the loop die
+                log.exception("Update check failed")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Open the Tevavid Tools panel: chat with Claude to change your model.")
     parser.add_argument("--port", type=int, help="Archicad JSON API port (default: find it automatically)")
@@ -123,6 +151,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--browser", action="store_true", help="open in the web browser instead of an Archicad palette")
     parser.add_argument("--background", action="store_true", help="keep running and open the panel when Archicad starts")
     parser.add_argument("--no-open", action="store_true", help="only start the service")
+    parser.add_argument("--open", action="store_true", help="with --background: also open the panel now")
     parser.add_argument("--exit-with-archicad", action="store_true", help="stop a minute after the last Archicad quits")
     args, _unknown = parser.parse_known_args(argv)  # Tapir passes extra flags such as --token
 
@@ -154,7 +183,7 @@ def main(argv: list[str] | None = None) -> None:
     def open_when_ready() -> None:
         while not server.started and not server.should_exit:
             time.sleep(0.1)
-        if server.started and not args.no_open and not args.background:
+        if server.started and not args.no_open and (args.open or not args.background):
             where = panel.open_panel(args.ui_port, token, browser=args.browser)
             print(f"Tevavid Tools is running on port {args.ui_port} (opened in the {where}).")
 
@@ -165,6 +194,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     if args.background or args.exit_with_archicad:
         threading.Thread(target=watcher.run, daemon=True).start()
+    # Only the background service installs updates by itself; a panel run from Archicad just shows them.
+    updates = UpdateLoop(server, app.state.updater, app.state.settings, watcher if args.background else None)
+    threading.Thread(target=updates.run, daemon=True).start()
     try:
         server.run()
     finally:

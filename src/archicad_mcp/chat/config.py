@@ -26,6 +26,7 @@ class Settings:
     model: str = "claude-opus-5-5"
     effort: str = "medium"
     auto_open_panel: bool = True
+    auto_update: bool = True  # download and install new versions by themselves
     tools: list[str] = field(default_factory=suite.default_tools)  # the suite tools picked during installation
 
     @property

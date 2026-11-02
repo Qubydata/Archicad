@@ -157,6 +157,17 @@
   .secondary:hover { border-color: var(--accent); color: var(--accent-strong); }
   .about { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
   .saved { color: var(--accent); font-size: 13px; margin-left: 10px; }
+  .update-banner { margin: 10px 20px 0; padding: 9px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .update-banner .text { flex-basis: 100%; }
+  .update-banner .go { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .update-banner .go:hover { color: #fff; background: var(--accent-strong); }
+  .update-banner .text b { color: var(--accent-strong); }
+  .update-banner .bad { color: var(--bad); }
+  .update-banner .progress-bar { flex-basis: 100%; margin: 2px 0 0; }
+  .update-notes { margin: 8px 0 0; font-size: 13px; color: var(--text-2); max-height: 180px; overflow-y: auto; }
+  .update-notes ul { margin: 4px 0; padding-left: 18px; }
+  .update-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .update-line .grow { flex: 1; min-width: 150px; color: var(--muted); font-size: 13px; }
   a { color: var(--accent); }
 
   /* menus */
@@ -232,6 +243,7 @@
     <button data-tab="library">Library</button>
     <button data-tab="settings">Settings</button>
   </nav>
+  <div class="update-banner" id="updateBanner" hidden></div>
   <main>
     <!-- Chat: home -->
     <section class="tab" id="home">
@@ -391,6 +403,15 @@
       <div class="field">Effort (higher is more careful, slower and costs more) <select id="effort"></select></div>
       </div>
       <label class="check"><input type="checkbox" id="autoOpen"> <span>Open this panel when Archicad starts</span></label>
+      <div class="way" id="updates">
+        <h3>Updates</h3>
+        <div class="update-line">
+          <div class="grow" id="updateLine">Checking...</div>
+          <button class="secondary" id="checkUpdates">Check for updates</button>
+        </div>
+        <div class="update-notes" id="updateNotes" hidden></div>
+        <label class="check"><input type="checkbox" id="autoUpdate"> <span>Install updates automatically (while Archicad is closed)</span></label>
+      </div>
       <button class="primary" id="saveSettings">Save</button><span class="saved" id="savedNote" hidden>Saved</span>
       <div class="about" id="about"></div>
     </section>
@@ -510,7 +531,7 @@ function setTab(tab) {
   showPane(tab === "chat" ? chatView : tab);
   if (tab === "library") loadLibrary();
   if (tab === "tools") loadCommands();
-  if (tab === "settings") refreshStatus();
+  if (tab === "settings") { refreshStatus(); refreshUpdate(); }
   if (tab === "sun") loadSun();
 }
 
@@ -941,6 +962,7 @@ async function refreshStatus() {
   model.value = status.settings.model;
   effort.value = status.settings.effort;
   $("autoOpen").checked = status.settings.autoOpenPanel;
+  $("autoUpdate").checked = status.settings.autoUpdate;
   $("apiKey").placeholder = status.settings.hasKey
     ? (status.settings.keyFromEnvironment ? "Using ANTHROPIC_API_KEY" : "Saved. Paste a new key to replace it")
     : "sk-ant-...";
@@ -984,6 +1006,7 @@ $("saveSettings").onclick = async () => {
     model: $("model").value,
     effort: $("effort").value,
     autoOpenPanel: $("autoOpen").checked,
+    autoUpdate: $("autoUpdate").checked,
   });
   $("apiKey").value = "";
   $("savedNote").hidden = false;
@@ -991,6 +1014,70 @@ $("saveSettings").onclick = async () => {
   await refreshStatus();
 };
 
+
+/* ---- updates ------------------------------------------------------------ */
+
+let updateTimer = null, bannerClosed = false;
+const sinceCheck = when => {
+  if (!when) return "";
+  const minutes = Math.round((Date.now() / 1000 - when) / 60);
+  return minutes < 2 ? "just now" : minutes < 90 ? `${minutes} minutes ago` : `${Math.round(minutes / 60)} hours ago`;
+};
+
+function renderUpdate(u) {
+  const banner = $("updateBanner");
+  const job = u.job || {};
+  const notes = $("updateNotes");
+  let line = `You have version ${escapeHtml(u.current)}. `;
+  if (job.installing) line += "Installing the update...";
+  else if (u.available) line += `Version ${escapeHtml(u.latest)} is available.`;
+  else if (u.error) line += escapeHtml(u.error);
+  else if (u.checked) line += `Up to date (checked ${sinceCheck(u.checked)}).`;
+  $("updateLine").innerHTML = line;
+  notes.hidden = !(u.available && u.notes);
+  if (u.available && u.notes) notes.innerHTML = `<b>What's new in ${escapeHtml(u.latest)}</b>` + renderMarkdown(u.notes);
+
+  let html = "";
+  if (job.installing) {
+    html = '<div class="text"><b>Installing the update.</b> The panel closes and opens again in about a minute.</div>';
+  } else if (job.running || u.downloading) {
+    const pct = Math.round(100 * (u.progress || 0));
+    html = `<div class="text">Downloading version ${escapeHtml(u.latest)}... ${pct}%</div><div class="progress-bar"><div style="width:${pct}%"></div></div>`;
+  } else if (job.error) {
+    html = `<div class="text bad">${escapeHtml(job.error)}</div><button class="small-button" data-update="install">Try again</button>`;
+  } else if (u.available && !bannerClosed) {
+    const failed = u.failedVersion === u.latest ? " The last try did not finish; see setup.log in the .tevavid-tools folder." : "";
+    const action = !u.canInstall
+      ? (u.page ? `<a class="small-button" href="${escapeHtml(u.page)}" target="_blank" rel="noopener">Download</a>` : "")
+      : `<button class="small-button go" data-update="install">${u.ready ? "Restart and update" : "Update now"}</button>`;
+    const notesButton = u.notes && currentTab !== "settings" ? '<button class="small-button" data-update="notes">What\u2019s new</button>' : "";
+    html = `<div class="text"><b>Version ${escapeHtml(u.latest)} is available.</b>${failed}</div>` +
+      action + notesButton + '<button class="small-button" data-update="later">Later</button>';
+  }
+  banner.innerHTML = html;
+  banner.hidden = !html;
+  clearTimeout(updateTimer);
+  if (job.running || job.installing || u.downloading) updateTimer = setTimeout(refreshUpdate, 700);
+}
+
+async function refreshUpdate() {
+  try { renderUpdate(await getJson("/api/update")); } catch (error) { /* the service restarts during an update */ }
+}
+
+$("updateBanner").addEventListener("click", async event => {
+  const button = event.target.closest("[data-update]");
+  if (!button) return;
+  const what = button.dataset.update;
+  if (what === "later") { bannerClosed = true; $("updateBanner").hidden = true; }
+  if (what === "notes") setTab("settings");
+  if (what === "install") renderUpdate(await postJson("/api/update/install"));
+});
+$("checkUpdates").onclick = async () => {
+  $("checkUpdates").disabled = true;
+  $("updateLine").textContent = "Checking...";
+  try { bannerClosed = false; renderUpdate(await postJson("/api/update/check")); }
+  finally { $("checkUpdates").disabled = false; }
+};
 
 /* ---- installed tools ----------------------------------------------------- */
 
@@ -1174,6 +1261,8 @@ buildTools();
   if (chatView === "home") loadRecent();
   if (history.busy) setBusy(true);
   setInterval(() => { if (!busy) refreshStatus(); }, 20000);
+  refreshUpdate();
+  setInterval(refreshUpdate, 30 * 60 * 1000);
 })();
 </script>
 </body>

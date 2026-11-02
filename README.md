@@ -38,6 +38,18 @@ Apps, or run `TevavidTools uninstall` on macOS. Settings and conversations are k
 
 For IT deployment: `TevavidToolsSetup.exe --silent [--tools assistant,sun] [--no-addon] [--no-desktop-app]`.
 
+### Updates
+
+Tevavid Tools keeps itself up to date. The background app checks for a new version once a day,
+downloads it, and installs it while Archicad is closed. The panel shows **Version x is
+available** with **Update now** and the release notes, and Settings has **Check for updates**
+and a switch for automatic updates. Running a newer setup by hand does the same: it finds the
+installed copy, keeps your tools, Archicad versions and settings, ticks the tools that are new,
+and swaps the new version in only once it is ready, so a failed update leaves the old one
+working. Updating the same version again lets you add or remove tools.
+
+For IT: `TevavidToolsSetup.exe --silent --update` updates with the installed choices.
+
 ## How it works
 
 ```
@@ -102,6 +114,24 @@ Environment variables: `ARCHICAD_PORT` (skip discovery), `ARCHICAD_HOST`, `ARCHI
 installers on GitHub's runners, installs each one silently, starts the installed MCP server and
 uninstalls again. Pushing a `v*` tag publishes them as a GitHub release.
 
+### Releasing a version
+
+```
+python scripts/release.py 0.2.0 "Sun Analysis: tiles on sloped floors" "New Model Import tool"
+git push origin main --follow-tags
+```
+
+The script sets the version in `src/archicad_mcp/__init__.py` (the one place it lives; the
+installers and `pyproject.toml` follow it), adds the notes to `CHANGELOG.md`, commits and tags.
+The workflow checks the tag matches the version, builds the installers and publishes the release
+with those notes, which installed copies show as "What's new".
+
+Installed copies download updates from the latest release of a **public** repository, set in
+`RELEASES_REPO` in `src/archicad_mcp/updater.py` (or a JSON feed URL in the
+`TEVAVID_UPDATE_FEED` environment variable). To keep the code private, publish releases to a
+separate public repository: set the repository variable `RELEASE_REPO` to it, and the secret
+`RELEASE_TOKEN` to a token that can create releases there, and point `RELEASES_REPO` at it.
+
 Before a public release:
 - Sign the Windows installer (Authenticode) so SmartScreen does not warn, and sign and notarize
   the macOS apps with an Apple Developer ID.
@@ -118,6 +148,7 @@ src/archicad_mcp/
   server.py, connection.py, catalog.py   MCP server, Archicad JSON API client, Tapir catalog
   chat/                                  panel: agent, web service, conversations, static/index.html
   installer/                             setup wizard (ui/*.html), install engine, OS integration
+  updater.py                             update check, download and silent install
   suite.py                               the tools of the suite (what the installer offers)
   sun/                                   Sun Analysis: sun position (NOAA), clear sky (ASHRAE), CIE sky patches,
                                          shadow ray casting, daylight with reflections, Archicad tiles
