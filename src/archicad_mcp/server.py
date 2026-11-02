@@ -24,7 +24,9 @@ from mcp.server.mcpserver import Image, MCPServer
 from mcp.types import ToolAnnotations
 
 from . import catalog
+from .chat import config as app_config
 from .connection import ArchicadConnection, ArchicadError
+from .sun.service import SunAnalysis
 
 INSTRUCTIONS = """\
 You are operating a live Archicad session through its JSON API and the Tapir add-on.
@@ -48,6 +50,7 @@ Ask before deleting elements or overwriting files the user did not mention.
 
 mcp = MCPServer(name="archicad", instructions=INSTRUCTIONS)
 archicad = ArchicadConnection()
+sun = SunAnalysis(archicad, app_config.CONFIG_DIR / "sun_tiles.json")
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
 MODIFY = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
@@ -586,6 +589,51 @@ def highlight_elements(
 def save_project() -> dict[str, Any]:
     """Save the open project in place."""
     return archicad.tapir("SaveProject")
+
+
+# --- Sun Analysis ------------------------------------------------------------
+
+
+@mcp.tool(annotations=MODIFY)
+def sun_analysis(
+    scope: Literal["story", "all", "selection"] = "story",
+    date: str | None = None,
+    metric: Literal["illuminance", "sun_hours", "daylight_factor"] = "illuminance",
+    grid: float = 0.5,
+    work_plane: float = 0.0,
+    include_furniture: bool = False,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict[str, Any]:
+    """Analyse sunlight and daylight on the room floors and show it as coloured tiles in the model.
+
+    Measures, for the rooms (zones) on the current story, all stories or the selection: daylight in lux
+    at each time of day (direct sun + skylight + light reflected in the room, through glass), hours of
+    direct sun, or the daylight factor (%). Uses the project location (Options > Project Location) unless
+    latitude/longitude are given. date: YYYY-MM-DD, default today. grid: m between points. work_plane:
+    height above the floor (0.85 for desks). The tiles go on the layer "Tevavid Sun Analysis"; use
+    sun_analysis_show to change the time or metric and sun_analysis_clear to remove them.
+    """
+    if latitude is not None and longitude is not None:
+        sun.location_override = {"latitude": latitude, "longitude": longitude}
+    return sun.run(scope, date, metric, grid, work_plane, include_furniture)
+
+
+@mcp.tool(annotations=MODIFY)
+def sun_analysis_show(
+    metric: Literal["illuminance", "sun_hours", "daylight_factor"] | None = None,
+    time: str | None = None,
+    low: float | None = None,
+    high: float | None = None,
+) -> dict[str, Any]:
+    """Recolour the last sun analysis: another metric, a time of day ("HH:MM", for illuminance), or a colour scale."""
+    return sun.show(metric, time, (low, high) if low is not None and high is not None else None)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+def sun_analysis_clear() -> dict[str, Any]:
+    """Remove the sun analysis tiles from the model."""
+    return sun.clear()
 
 
 # --- full API access ---------------------------------------------------------

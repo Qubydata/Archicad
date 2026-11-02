@@ -32,6 +32,7 @@ CREATE_COMMANDS = {
     "CreateDoors": ("doorsData", "Door"),
     "CreateZones": ("zonesData", "Zone"),
     "CreateObjects": ("objectsData", "Object"),
+    "CreateMorphs": ("morphsData", "Morph"),
 }
 
 
@@ -44,6 +45,10 @@ class FakeArchicad:
         self.properties: dict[tuple[str, str], str] = {}
         self.requests: list[dict[str, Any]] = []
         self.palettes: list[dict[str, Any]] = []
+        self.highlights: list[dict[str, Any]] = []
+        self.location = {"longitude": -0.12, "latitude": 51.5, "altitude": 20.0, "north": 1.5707963267948966}
+        self.surfaces: dict[str, dict[str, Any]] = {}
+        self.layers: list[dict[str, Any]] = [{"attributeId": {"guid": "L0"}, "index": 1, "name": "Archicad Layer"}]
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.port = self._server.server_address[1]
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -55,6 +60,13 @@ class FakeArchicad:
     def __exit__(self, *exc: Any) -> None:
         self._server.shutdown()
         self._server.server_close()
+
+    def add(self, element_type: str, details: dict[str, Any] | None = None, bodies: list | None = None,
+            floor: int = 0) -> str:
+        """Put an element in the fake model, with GetDetailsOfElements details and 3D bodies."""
+        guid = str(uuid.uuid4()).upper()
+        self.elements[guid] = {"type": element_type, "data": {}, "details": details or {}, "bodies": bodies or [], "floor": floor}
+        return guid
 
     def tapir_calls(self, name: str) -> list[dict[str, Any]]:
         return [
@@ -132,10 +144,34 @@ class FakeArchicad:
             return {"elements": created}
         if name == "GetDetailsOfElements":
             return {"detailsOfElements": [
-                {"type": self.elements[g]["type"], "id": g[:4], "floorIndex": 0, "layerIndex": 1}
+                {"type": self.elements[g]["type"], "id": g[:4], "floorIndex": self.elements[g].get("floor", 0),
+                 "layerIndex": self.elements[g].get("layer", 1), "details": self.elements[g].get("details", {})}
                 if g in self.elements else {"error": {"code": 1, "message": "Not found"}}
                 for g in guids(p["elements"])
             ]}
+        if name == "GetGeoLocation":
+            return {"projectLocation": self.location, "surveyPoint": {}}
+        if name == "Get3DGeometryOfElements":
+            return {"geometries3D": [{"bodies": self.elements[g].get("bodies", [])} if g in self.elements
+                                     else {"error": {"code": 1, "message": "Not found"}} for g in guids(p["elements"])]}
+        if name == "GetSurfaces":
+            return {"surfaces": [self.surfaces.get(a["attributeId"]["guid"], {"error": {"code": 1, "message": "Not found"}})
+                                 for a in p["attributeIds"]]}
+        if name == "GetAttributesByType":
+            return {"attributes": self.layers if p["attributeType"] == "Layer" else []}
+        if name == "CreateLayers":
+            ids = []
+            for layer in p["layerDataArray"]:
+                guid = str(uuid.uuid4())
+                self.layers.append({"attributeId": {"guid": guid}, "index": len(self.layers) + 1, "name": layer["name"]})
+                ids.append({"attributeId": {"guid": guid}})
+            return {"attributeIds": ids}
+        if name == "SetDetailsOfElements":
+            for item in p["elementsWithDetails"]:
+                element = self.elements.get(item["elementId"]["guid"])
+                if element is not None and "layerIndex" in item["details"]:
+                    element["layer"] = item["details"]["layerIndex"]
+            return {"executionResults": [{"success": True} for _ in p["elementsWithDetails"]]}
         if name == "MoveElements":
             results = []
             for item in p["elementsWithMoveVectors"]:
@@ -181,6 +217,7 @@ class FakeArchicad:
                     self.selection.append(guid)
             return {"executionResultsOfAddToSelection": [], "executionResultsOfRemoveFromSelection": []}
         if name == "HighlightElements":
+            self.highlights.append(p)
             return {"success": True}
         if name == "GetAvailableLibraryParts":
             return {"skippedCount": 0, "libraryParts": [
