@@ -249,8 +249,12 @@ class System:
                 )
 
 
-def spawn_detached(command: list[str]) -> None:
-    """Start a process that outlives the installer and has no console window."""
+def spawn_detached(command: list[str] | str) -> None:
+    """Start a process that outlives the installer and has no console window.
+
+    On Windows the command may be a ready command line, for cmd.exe, whose quoting
+    rules are not the ones subprocess.list2cmdline writes.
+    """
     if sys.platform == "win32":
         flags = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
         subprocess.Popen(command, creationflags=flags, close_fds=True,

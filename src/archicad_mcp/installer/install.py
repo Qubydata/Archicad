@@ -600,7 +600,8 @@ def uninstall(system: System) -> None:
 def _remove_after_exit(system: System, folder: Path) -> None:
     """The running app cannot delete its own folder, so a helper does it once we have exited."""
     if system.is_windows:
-        command = f'ping 127.0.0.1 -n 4 > nul & rmdir /s /q "{folder}"'
-        sysmod.spawn_detached(["cmd", "/c", command])
+        # cmd /s /c "...": cmd drops the outer quotes and keeps the ones around the path,
+        # which has a space ("Tevavid Tools"). A list would get list2cmdline's \" quoting, which cmd ignores.
+        sysmod.spawn_detached(f'cmd.exe /s /c "ping 127.0.0.1 -n 4 > nul & rmdir /s /q "{folder}""')
     else:
         sysmod.spawn_detached(["/bin/sh", "-c", f"sleep 3; rm -rf {sysmod._sh_quote(str(folder))}"])
