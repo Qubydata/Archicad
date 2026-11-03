@@ -45,6 +45,7 @@ def _setup(args: list[str]) -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         handlers=[logging.FileHandler(system.data_dir / "setup.log", encoding="utf8"), logging.StreamHandler()],
     )
+    logging.getLogger("archicad_mcp.installer").info("Tevavid Tools Setup %s starting %s", __version__, args)
     if "--silent" in args:
         from .installer.gui import run_silent
 

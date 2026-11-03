@@ -51,10 +51,18 @@ jobs:
         shell: pwsh
         run: |
           # The wizard window itself: opens, fills in from Python, closes.
+          $env:PYWEBVIEW_LOG = "debug"
           $window = Start-Process dist/release/TevavidToolsSetup.exe -ArgumentList '--selftest' -PassThru
-          if (-not $window.WaitForExit(180000)) { $window.Kill(); Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue; throw "setup window self-test hung" }
+          $finished = $window.WaitForExit(180000)
           Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue
-          if ($window.ExitCode -ne 0) { throw "setup window self-test failed with $($window.ExitCode)" }
+          if (-not $finished) { $window.Kill(); throw "setup window self-test hung" }
+          if ($window.ExitCode -ne 0) {
+            # A crash inside .NET (0xE0434352) leaves its error in the Application event log.
+            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-10)} -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProviderName -in '.NET Runtime', 'Application Error', 'Windows Error Reporting' } |
+              Select-Object -First 4 | Format-List TimeCreated, ProviderName, Message
+            throw "setup window self-test failed with $($window.ExitCode)"
+          }
           $setup = Start-Process dist/release/TevavidToolsSetup.exe -ArgumentList '--silent','--no-addon','--no-desktop-app' -Wait -PassThru
           Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue
           if ($setup.ExitCode -ne 0) { throw "setup failed with $($setup.ExitCode)" }

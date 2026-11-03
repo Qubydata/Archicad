@@ -180,6 +180,7 @@ class SetupApp:
             resizable=False, easy_drag=False, background_color="#FFFFFF",
         )
         self.main.events.shown += close_splash
+        log.info("Opening the setup window (pywebview %s, %s)", getattr(webview, "__version__", "?"), sys.platform)
         icon = Path(__file__).resolve().parent.parent / "assets" / "logo-256.png"
         self.selftest_ok = False
         webview.start(self._selftest if selftest else None, debug=False, icon=str(icon))
