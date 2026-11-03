@@ -55,7 +55,7 @@
   /* --- full panel (screen 7) --------------------------------------------- */
   #full { height: 100%; display: flex; flex-direction: column; }
   .brand { display: flex; align-items: center; gap: 14px; padding: 18px 18px 0; }
-  .brand img { width: 56px; height: 56px; border-radius: 12px; flex: none; }
+  .brand .logo { width: 58px; height: auto; flex: none; color: var(--text); }
   .brand .name { flex: 1; min-width: 0; }
   .brand h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
   .brand p { margin: 1px 0 0; color: var(--muted); font-size: 13px; }
@@ -217,7 +217,8 @@
 
   /* --- compact panel (screen 8) ----------------------------------------- */
   #compact { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; }
-  #compact img { width: 58px; height: 58px; border-radius: 12px; margin-bottom: 18px; cursor: pointer; }
+  #compact .logo-button { margin-bottom: 18px; color: var(--text); }
+  #compact .logo-button .logo { width: 54px; height: auto; display: block; }
   #compact .nav { width: 64px; height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--text-2); }
   #compact .nav svg.i { width: 24px; height: 24px; }
   #compact .nav:hover { background: var(--surface); }
@@ -228,7 +229,7 @@
 
 <div id="full">
   <header class="brand">
-    <img src="/assets/logo-128.png" alt="">
+    <svg class="logo" viewBox="120 140 600 330" fill="currentColor" aria-hidden="true"><path d="M140 287 Q140 263 163 268 L292 302 Q306 306 314 319 L375 420 Q385 452 352 452 L162 452 Q140 452 140 430 Z"/><path d="M458 290 Q462 276 476 268 L664 168 Q698 152 698 190 L698 430 Q698 452 676 452 L434 452 Q403 452 412 424 Z"/></svg>
     <div class="name">
       <h1>Tevavid Tools</h1>
       <p>for Archicad</p>
@@ -419,7 +420,7 @@
 </div>
 
 <div id="compact" hidden>
-  <img src="/assets/logo-128.png" alt="Tevavid Tools" title="Expand" data-expand="chat">
+  <button class="logo-button" title="Expand" data-expand="chat" aria-label="Tevavid Tools"><svg class="logo" viewBox="120 140 600 330" fill="currentColor" aria-hidden="true"><path d="M140 287 Q140 263 163 268 L292 302 Q306 306 314 319 L375 420 Q385 452 352 452 L162 452 Q140 452 140 430 Z"/><path d="M458 290 Q462 276 476 268 L664 168 Q698 152 698 190 L698 430 Q698 452 676 452 L434 452 Q403 452 412 424 Z"/></svg></button>
   <button class="nav active" data-expand="chat" title="Chat"><i data-icon="chat"></i></button>
   <button class="nav" data-expand="sun" title="Sun Analysis"><i data-icon="sun"></i></button>
   <button class="nav" data-expand="tools" title="Tools"><i data-icon="grid"></i></button>
@@ -1087,7 +1088,7 @@ function tabAllowed(tab) { return !TAB_TOOL[tab] || installed.includes(TAB_TOOL[
 function applyTools(tools) {
   installed = tools;
   document.querySelectorAll("#tabs button").forEach(b => { b.hidden = !tabAllowed(b.dataset.tab); });
-  document.querySelectorAll("#compact [data-expand]").forEach(b => { b.hidden = b.tagName === "BUTTON" && !tabAllowed(b.dataset.expand); });
+  document.querySelectorAll("#compact [data-expand]").forEach(b => { b.hidden = b.classList.contains("nav") && !tabAllowed(b.dataset.expand); });
   $("aiSettings").hidden = !installed.includes("assistant");
   if (!tabAllowed(currentTab)) setTab(installed.includes("sun") ? "sun" : "settings");
 }

@@ -219,7 +219,9 @@ def test_options_from_page():
 def test_pages_inline_their_images():
     html = gui.page("setup.html")
     assert "../../assets/" not in html and 'src="building.svg"' not in html
-    assert "data:image/svg+xml;base64," in html and "data:image/png;base64," in html
+    assert "data:image/svg+xml;base64," in html and 'class="logo"' in html  # the building art, the vector mark
+    for name in ("mini.html", "toast.html"):
+        assert "data:image/png;base64," in gui.page(name) and "../../assets/" not in gui.page(name)
 
 
 def test_launcher_dispatch(capsys, monkeypatch):
