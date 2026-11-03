@@ -53,9 +53,25 @@ def _setup(args: list[str]) -> int:
             tools = [t.strip() for t in args[args.index("--tools") + 1].split(",") if t.strip()]
         return run_silent(system, addon="--no-addon" not in args, desktop_app="--no-desktop-app" not in args, tools=tools,
                           update="--update" in args, relaunch="--relaunch" in args)
-    from .installer.gui import SetupApp
+    try:
+        from .installer.gui import SetupApp
 
-    SetupApp(system).run()
+        if "--selftest" in args:  # used by the build: open the window, check it, close it
+            return 0 if SetupApp(system).run(selftest=True) else 1
+        SetupApp(system).run()
+    except Exception as exc:  # a windowed program has no console: say what went wrong
+        logging.getLogger("archicad_mcp.installer").exception("The setup window could not start")
+        try:
+            from .installer.gui import close_splash
+
+            close_splash()
+        except Exception:
+            pass
+        _message("Tevavid Tools Setup",
+                 f"Setup could not open its window ({type(exc).__name__}: {exc}).\n\n"
+                 f"Details are in {system.data_dir / 'setup.log'}. "
+                 "On Windows, installing the Microsoft Edge WebView2 Runtime often fixes this.")
+        return 1
     return 0
 
 

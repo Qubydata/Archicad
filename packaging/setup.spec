@@ -23,8 +23,17 @@ analysis = Analysis(
     datas=collect_data_files("archicad_mcp") + [(str(PAYLOAD), "payload")],
     hiddenimports=collect_submodules("archicad_mcp.installer"),
 )
+# Windows: a picture while the one-file setup unpacks itself (it takes a few seconds,
+# more while antivirus scans it); the setup closes it when its window shows.
+splash = []
+if sys.platform == "win32":
+    splash_screen = Splash(str(ROOT / "packaging" / "icons" / "splash.png"), binaries=analysis.binaries,
+                           datas=analysis.datas, text_pos=(0, 222), text_size=10, text_color="#61656d",
+                           text_default="  Starting Tevavid Tools Setup...", always_on_top=False)
+    splash = [splash_screen, splash_screen.binaries]
+
 exe = EXE(
-    PYZ(analysis.pure), analysis.scripts, analysis.binaries, analysis.datas, [],
+    PYZ(analysis.pure), analysis.scripts, *splash, analysis.binaries, analysis.datas, [],
     name="TevavidToolsSetup", console=False, icon=ICON, upx=False,
     uac_admin=False,  # elevation is asked only for the Tapir add-on step
 )

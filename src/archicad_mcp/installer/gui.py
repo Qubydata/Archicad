@@ -57,6 +57,16 @@ def archicad_rows(system: System) -> list[dict[str, Any]]:
     return rows
 
 
+def close_splash(*_args: Any) -> None:
+    """Close the "starting" picture the Windows setup shows while it unpacks itself."""
+    try:
+        import pyi_splash  # only inside the packaged Windows setup
+
+        pyi_splash.close()
+    except Exception:
+        pass
+
+
 def existing_install(system: System) -> dict[str, Any] | None:
     """What an installed copy has, so setup can offer to update it with the same choices."""
     manifest = read_manifest(system)
@@ -153,7 +163,8 @@ class SetupApp:
 
     # --- windows ------------------------------------------------------------
 
-    def run(self) -> None:
+    def run(self, selftest: bool = False) -> bool:
+        """Show the wizard. With selftest, open it, check the page drew its options, close, and say if it worked."""
         import webview
 
         self.main = webview.create_window(
@@ -168,8 +179,32 @@ class SetupApp:
             width=MINI_SIZE[0], height=MINI_SIZE[1], frameless=True, on_top=True, hidden=True,
             resizable=False, easy_drag=False, background_color="#FFFFFF",
         )
+        self.main.events.shown += close_splash
         icon = Path(__file__).resolve().parent.parent / "assets" / "logo-256.png"
-        webview.start(debug=False, icon=str(icon))
+        self.selftest_ok = False
+        webview.start(self._selftest if selftest else None, debug=False, icon=str(icon))
+        return self.selftest_ok
+
+    def _selftest(self) -> None:
+        import time
+
+        try:
+            self.main.events.loaded.wait(60)
+            for _ in range(100):  # the page asks Python for its state, then writes it in
+                text = self.main.evaluate_js("document.getElementById('supported').textContent")
+                versions = self.main.evaluate_js("document.querySelectorAll('#toolList input').length")
+                if text and "Archicad" in text and versions:
+                    self.selftest_ok = True
+                    log.info("Setup window self-test passed: %s, %s tools listed", text, versions)
+                    break
+                time.sleep(0.2)
+            else:
+                log.error("Setup window self-test: the page did not fill in")
+        except Exception:
+            log.exception("Setup window self-test failed")
+        finally:
+            self._destroy_others()
+            self.main.destroy()
 
     def _screen_size(self) -> tuple[int, int]:
         import webview

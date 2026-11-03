@@ -4,7 +4,8 @@
 
 Reads the mark's two shapes from src/archicad_mcp/assets/tevavid-mark.svg and
 writes the black mark on a white rounded tile as packaging/icons/tevavid-tools
-.png/.ico/.icns and src/archicad_mcp/assets/logo-128.png and logo-256.png.
+.png/.ico/.icns, the setup splash picture packaging/icons/splash.png, and
+src/archicad_mcp/assets/logo-128.png and logo-256.png.
 """
 
 from __future__ import annotations
@@ -73,6 +74,12 @@ def main() -> None:
     assets = ROOT / "src" / "archicad_mcp" / "assets"
     for size in (128, 256):
         tile(size).save(assets / f"logo-{size}.png")
+    # Shown by the Windows setup while it unpacks itself (PyInstaller splash screen).
+    splash = Image.new("RGB", (420, 240), (255, 255, 255))
+    mark = tile(150)
+    splash.paste(mark, ((420 - 150) // 2, 22), mark)
+    ImageDraw.Draw(splash).rectangle((0, 0, 419, 239), outline=(226, 228, 232))
+    splash.save(icons / "splash.png")
     print("icons written")
 
 

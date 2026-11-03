@@ -50,6 +50,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # The wizard window itself: opens, fills in from Python, closes.
+          $window = Start-Process dist/release/TevavidToolsSetup.exe -ArgumentList '--selftest' -PassThru
+          if (-not $window.WaitForExit(180000)) { $window.Kill(); Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue; throw "setup window self-test hung" }
+          Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue
+          if ($window.ExitCode -ne 0) { throw "setup window self-test failed with $($window.ExitCode)" }
           $setup = Start-Process dist/release/TevavidToolsSetup.exe -ArgumentList '--silent','--no-addon','--no-desktop-app' -Wait -PassThru
           Get-Content "$env:USERPROFILE\.tevavid-tools\setup.log" -ErrorAction SilentlyContinue
           if ($setup.ExitCode -ne 0) { throw "setup failed with $($setup.ExitCode)" }
@@ -68,6 +73,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ditto -x -k dist/release/TevavidToolsSetup-macOS.zip /tmp/setup
+          "/tmp/setup/Tevavid Tools Setup.app/Contents/MacOS/TevavidToolsSetup" --selftest || { cat ~/.tevavid-tools/setup.log; exit 1; }
           "/tmp/setup/Tevavid Tools Setup.app/Contents/MacOS/TevavidToolsSetup" --silent --no-addon --no-desktop-app
           server="$HOME/Applications/Tevavid Tools.app/Contents/MacOS/tevavid-mcp-server"
           "$server" version
