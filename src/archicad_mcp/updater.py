@@ -1,11 +1,14 @@
 """Automatic updates: find a newer release, download its setup and run it silently.
 
-The feed is the latest release of a public GitHub repository (the Build
-installers workflow publishes one for every v* tag), or any URL serving JSON
-like this, for hosting the files elsewhere:
+The feed is https://tevavid.com/downloads/latest.json, which every release
+makes (scripts/make_feed.py) next to its installers:
 
-    {"version": "0.2.0", "notes": "...", "url": "https://.../page",
-     "assets": {"win32": {"url": "https://.../TevavidToolsSetup.exe", "sha256": "...", "size": 123}}}
+    {"version": "0.2.0", "notes": "...", "url": "https://tevavid.com/...",
+     "assets": {"win32": {"url": "0.2.0/TevavidToolsSetup.exe", "sha256": "...", "size": 123}}}
+
+Asset URLs may be relative to the feed. The TEVAVID_UPDATE_FEED environment
+variable points copies elsewhere, for testing; a GitHub "latest release" API
+URL works too.
 
 The background service checks once a day, downloads a newer setup by itself
 and installs it while no Archicad is running. The panel shows the same state
@@ -25,6 +28,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -35,8 +39,8 @@ from . import __version__
 
 log = logging.getLogger("archicad_mcp.updater")
 
-# Where releases are published. It must be public, so installed copies can download without signing in.
-RELEASES_REPO = "qubydata/archicad"
+# Where releases are published: the installers and latest.json, publicly downloadable.
+DOWNLOADS_URL = "https://tevavid.com/downloads"
 FEED_ENV = "TEVAVID_UPDATE_FEED"
 CHECK_EVERY = 24 * 3600
 ASSETS = {"win32": "TevavidToolsSetup.exe", "darwin": "TevavidToolsSetup-macOS.zip", "linux": "TevavidToolsSetup-linux"}
@@ -47,7 +51,7 @@ class UpdateError(Exception):
 
 
 def feed_url() -> str:
-    return os.environ.get(FEED_ENV) or f"https://api.github.com/repos/{RELEASES_REPO}/releases/latest"
+    return os.environ.get(FEED_ENV) or f"{DOWNLOADS_URL}/latest.json"
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -83,7 +87,7 @@ def _get_json(url: str, timeout: float = 20) -> Any:
         return json.loads(response.read())
 
 
-def parse_feed(data: dict[str, Any], platform: str) -> Release | None:
+def parse_feed(data: dict[str, Any], platform: str, base: str = "") -> Release | None:
     """A GitHub release or a plain JSON feed, as the Release for this platform (None when it has no setup for it)."""
     name = ASSETS.get(platform)
     if "tag_name" in data:  # GitHub
@@ -103,13 +107,15 @@ def parse_feed(data: dict[str, Any], platform: str) -> Release | None:
         return None
     return Release(
         version=str(data["version"]).lstrip("vV"), notes=data.get("notes") or "", page=data.get("url") or "",
-        url=asset["url"], size=int(asset.get("size") or 0), sha256=asset.get("sha256") or "", published=data.get("published") or "",
+        url=urllib.parse.urljoin(base, asset["url"]), size=int(asset.get("size") or 0), sha256=asset.get("sha256") or "",
+        published=data.get("published") or "",
     )
 
 
 def fetch_latest(platform: str = sys.platform) -> Release | None:
     try:
-        return parse_feed(_get_json(feed_url()), platform)
+        url = feed_url()
+        return parse_feed(_get_json(url), platform, base=url)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             raise UpdateError("No release has been published yet.") from exc

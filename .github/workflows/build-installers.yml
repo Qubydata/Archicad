@@ -76,9 +76,10 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/release/*
 
-  # A v* tag (made by scripts/release.py) publishes the installers as a release. Installed copies
-  # update from the latest release of a public repository: this one, or the one named by the
-  # RELEASE_REPO variable (with a RELEASE_TOKEN secret allowed to write there), so the code can stay private.
+  # A v* tag (made by scripts/release.py) publishes the release: a GitHub release here (this
+  # repository can stay private) and the "tevavid.com-downloads" artifact, whose contents go to
+  # https://tevavid.com/downloads/ (the version folder, then latest.json, which installed copies
+  # check for updates).
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -93,10 +94,16 @@ jobs:
         with:
           path: release
           merge-multiple: true
+      - name: Make the tevavid.com downloads folder
+        run: python scripts/make_feed.py "$GITHUB_REF_NAME" release site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tevavid.com-downloads
+          path: site/
       - uses: softprops/action-gh-release@v2
         with:
           name: Tevavid Tools ${{ github.ref_name }}
           body_path: release-notes.md
-          files: release/*
-          repository: ${{ vars.RELEASE_REPO || github.repository }}
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          files: |
+            release/*
+            site/latest.json

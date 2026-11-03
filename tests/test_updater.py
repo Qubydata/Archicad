@@ -179,3 +179,36 @@ def test_release_dataclass_round_trip(tmp_path):
     fake.updater.check()
     saved = json.loads((tmp_path / "update.json").read_text())["latest"]
     assert Release(**saved).version == "0.2.0"
+
+
+def test_feed_from_tevavid_com(monkeypatch):
+    monkeypatch.delenv(updater.FEED_ENV, raising=False)
+    assert updater.feed_url() == "https://tevavid.com/downloads/latest.json"
+    feed = {"version": "0.2.0", "notes": "n", "assets": {"win32": {"url": "0.2.0/TevavidToolsSetup.exe", "sha256": "ab"}}}
+    release = updater.parse_feed(feed, "win32", base=updater.feed_url())
+    assert release.url == "https://tevavid.com/downloads/0.2.0/TevavidToolsSetup.exe"
+
+
+def test_make_feed(tmp_path, monkeypatch):
+    import importlib
+    import sys
+    from pathlib import Path
+
+    scripts = Path(__file__).resolve().parent.parent / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    make_feed = importlib.import_module("make_feed")
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "TevavidToolsSetup.exe").write_bytes(SETUP)
+    (release / "TevavidToolsSetup-macOS.zip").write_bytes(b"mac")
+    from archicad_mcp import __version__
+
+    feed = make_feed.make(f"v{__version__}", release, tmp_path / "site")
+    saved = json.loads((tmp_path / "site" / "latest.json").read_text())
+    assert saved == feed and set(saved["assets"]) == {"win32", "darwin"}
+    assert (tmp_path / "site" / __version__ / "TevavidToolsSetup.exe").read_bytes() == SETUP
+    parsed = updater.parse_feed(saved, "win32", base="https://tevavid.com/downloads/latest.json")
+    assert parsed.sha256 == hashlib.sha256(SETUP).hexdigest() and parsed.url.endswith(f"/{__version__}/TevavidToolsSetup.exe")
+    with pytest.raises(SystemExit):
+        make_feed.make("v9.9.9", release, tmp_path / "other")  # a tag that is not the code's version
+    sys.modules.pop("make_feed", None)

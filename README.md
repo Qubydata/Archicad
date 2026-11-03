@@ -13,7 +13,7 @@ Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the
 
 ## For users: install
 
-1. Download the installer from the [releases page](../../releases):
+1. Download the installer from [tevavid.com](https://tevavid.com):
    `TevavidToolsSetup.exe` (Windows) or `TevavidToolsSetup-macOS.zip` (macOS).
 2. Run it and click **Next**, pick your Archicad versions and the tools you want, then **Install**.
    Depending on the tools, the setup installs:
@@ -126,11 +126,12 @@ installers and `pyproject.toml` follow it), adds the notes to `CHANGELOG.md`, co
 The workflow checks the tag matches the version, builds the installers and publishes the release
 with those notes, which installed copies show as "What's new".
 
-Installed copies download updates from the latest release of a **public** repository, set in
-`RELEASES_REPO` in `src/archicad_mcp/updater.py` (or a JSON feed URL in the
-`TEVAVID_UPDATE_FEED` environment variable). To keep the code private, publish releases to a
-separate public repository: set the repository variable `RELEASE_REPO` to it, and the secret
-`RELEASE_TOKEN` to a token that can create releases there, and point `RELEASES_REPO` at it.
+Installed copies check **https://tevavid.com/downloads/latest.json** for updates (set in
+`DOWNLOADS_URL` in `src/archicad_mcp/updater.py`). For each release the workflow makes a
+`tevavid.com-downloads` artifact: upload its version folder (for example `0.2.0/` with the
+installers) to `tevavid.com/downloads/`, then `latest.json`. Every installed copy then offers the
+update within a day. `python scripts/make_feed.py v0.2.0 release/ site/` makes the same folder
+from installers built locally. The GitHub repository can stay private.
 
 Before a public release:
 - Sign the Windows installer (Authenticode) so SmartScreen does not warn, and sign and notarize
