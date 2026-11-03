@@ -125,6 +125,8 @@ The script sets the version in `src/archicad_mcp/__init__.py` (the one place it 
 installers and `pyproject.toml` follow it), adds the notes to `CHANGELOG.md`, commits and tags.
 The workflow checks the tag matches the version, builds the installers and publishes the release
 with those notes, which installed copies show as "What's new".
+Without pushing a tag: run the Build installers workflow by hand (Actions tab, Run workflow) with
+**release** ticked; it publishes the version in the code and makes its tag.
 
 Installed copies check **https://tevavid.com/downloads/latest.json** for updates (set in
 `DOWNLOADS_URL` in `src/archicad_mcp/updater.py`). For each release the workflow makes a

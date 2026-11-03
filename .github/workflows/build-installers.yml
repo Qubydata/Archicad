@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release of the version in the code (makes its v tag)"
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -81,28 +86,36 @@ jobs:
   # https://tevavid.com/downloads/ (the version folder, then latest.json, which installed copies
   # check for updates).
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: The tag to publish
+        # A pushed v* tag, or for a manual release the version in the code.
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"
+          else tag="v$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/archicad_mcp/__init__.py)"; fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
       - name: Check the version and write the notes
-        run: python scripts/release.py notes "$GITHUB_REF_NAME" > release-notes.md
+        run: python scripts/release.py notes "$TAG" > release-notes.md
       - uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
       - name: Make the tevavid.com downloads folder
-        run: python scripts/make_feed.py "$GITHUB_REF_NAME" release site
+        run: python scripts/make_feed.py "$TAG" release site
       - uses: actions/upload-artifact@v4
         with:
           name: tevavid.com-downloads
           path: site/
       - uses: softprops/action-gh-release@v2
         with:
-          name: Tevavid Tools ${{ github.ref_name }}
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Tevavid Tools ${{ env.TAG }}
           body_path: release-notes.md
           files: |
             release/*
