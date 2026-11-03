@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 (2026-11-03)
+
+- Setup opens on Windows (it closed straight away in 0.1.0).
+- A starting picture while setup unpacks, and a clear message if setup cannot open.
+- Uninstall removes the app folder on Windows.
+- New Tevavid logo.
+
 ## 0.1.0
 
 - AI Assistant: chat with Claude to change your Archicad model, in the Tevavid panel inside Archicad or from Claude Desktop with your Claude plan.

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from archicad_mcp import launcher
+from archicad_mcp import __version__, launcher
 from archicad_mcp.installer import gui, install
 from archicad_mcp.installer import system as sysmod
 from archicad_mcp.installer.install import Installer, Options
@@ -233,7 +233,7 @@ def test_launcher_dispatch(capsys, monkeypatch):
     assert started == [["--silent", "--update"]]  # a dotted file name still runs setup, not the panel
     monkeypatch.undo()
     assert launcher.main(["version"]) == 0
-    assert capsys.readouterr().out.strip() == "0.1.0"
+    assert capsys.readouterr().out.strip() == __version__
     assert launcher.main(["bogus"]) == 2
 
 
@@ -289,7 +289,7 @@ def test_update_replaces_the_app_and_keeps_the_first_install_state(home, payload
     manifest = install.read_manifest(system)
     state = Installer(system, Options.from_manifest(manifest, "linux"), newer,
                       downloader=fake_downloader(on_call=downloads.append)).run()
-    assert state["status"] == "done" and state["update"] and state["previousVersion"] == "0.1.0"
+    assert state["status"] == "done" and state["update"] and state["previousVersion"] == __version__
     assert (system.install_dir / "TevavidTools").read_text() == "app v2"
     assert not (system.install_dir / "_internal").exists()  # old files do not linger
     assert not list(system.install_dir.parent.glob(".*"))  # no staging or old copy left behind
@@ -382,7 +382,7 @@ def test_setup_knows_the_installed_copy(home, payload):
     assert gui.existing_install(system) is None
     Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()
     found = gui.existing_install(system)
-    assert found["version"] == "0.1.0" and found["tools"] == ["assistant", "sun"] and not found["newer"]
+    assert found["version"] == __version__ and found["tools"] == ["assistant", "sun"] and not found["newer"]
     assert found["offered"] == ["assistant", "sun"]
     manifest = install.read_manifest(system)
     del manifest["offered"]  # as written by 0.1.0
