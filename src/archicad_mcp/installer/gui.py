@@ -181,9 +181,11 @@ class SetupApp:
         )
         self.main.events.shown += close_splash
         log.info("Opening the setup window (pywebview %s, %s)", getattr(webview, "__version__", "?"), sys.platform)
-        icon = Path(__file__).resolve().parent.parent / "assets" / "logo-256.png"
+        # Windows (WinForms) only takes an .ico here and crashes on a PNG; the setup program
+        # already carries its icon there. The icon is for Linux windows.
+        icon = None if sys.platform in ("win32", "darwin") else str(Path(__file__).resolve().parent.parent / "assets" / "logo-256.png")
         self.selftest_ok = False
-        webview.start(self._selftest if selftest else None, debug=False, icon=str(icon))
+        webview.start(self._selftest if selftest else None, debug=False, icon=icon)
         return self.selftest_ok
 
     def _selftest(self) -> None:
