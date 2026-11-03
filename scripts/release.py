@@ -24,6 +24,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 INIT = ROOT / "src" / "archicad_mcp" / "__init__.py"
 PYPROJECT = ROOT / "pyproject.toml"
 CHANGELOG = ROOT / "CHANGELOG.md"
+LOCK = ROOT / "uv.lock"
 
 
 def parse(version: str) -> tuple[int, ...]:
@@ -67,6 +68,9 @@ def main() -> None:
                     encoding="utf8")
     PYPROJECT.write_text(re.sub(r'(?m)^version = "[^"]+"', f'version = "{args.version}"',
                                 PYPROJECT.read_text(encoding="utf8"), count=1), encoding="utf8")
+    if LOCK.exists():  # uv.lock records the project's own version too
+        LOCK.write_text(LOCK.read_text(encoding="utf8").replace(
+            f'name = "tevavid-tools"\nversion = "{old}"', f'name = "tevavid-tools"\nversion = "{args.version}"'), encoding="utf8")
     entry = f"## {args.version} ({datetime.date.today().isoformat()})\n\n" + "".join(f"- {n}\n" for n in args.notes) + "\n"
     history = CHANGELOG.read_text(encoding="utf8") if CHANGELOG.exists() else "# Changelog\n\n"
     head, _, rest = history.partition("\n\n")
@@ -74,7 +78,7 @@ def main() -> None:
     print(f"Version {old} -> {args.version}")
     if args.no_commit:
         return
-    subprocess.run(["git", "add", str(INIT), str(PYPROJECT), str(CHANGELOG)], check=True, cwd=ROOT)
+    subprocess.run(["git", "add", str(INIT), str(PYPROJECT), str(CHANGELOG), str(LOCK)], check=True, cwd=ROOT)
     subprocess.run(["git", "commit", "-m", f"Release {args.version}"], check=True, cwd=ROOT)
     subprocess.run(["git", "tag", "-a", f"v{args.version}", "-m", "\n".join(args.notes)], check=True, cwd=ROOT)
     print(f"Tagged v{args.version}. Publish with: git push origin main --follow-tags")
