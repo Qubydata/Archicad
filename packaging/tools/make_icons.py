@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 MARK = ROOT / "src" / "archicad_mcp" / "assets" / "tevavid-mark.svg"
@@ -77,8 +77,13 @@ def main() -> None:
     # Shown by the Windows setup while it unpacks itself (PyInstaller splash screen).
     splash = Image.new("RGB", (420, 240), (255, 255, 255))
     mark = tile(150)
-    splash.paste(mark, ((420 - 150) // 2, 22), mark)
-    ImageDraw.Draw(splash).rectangle((0, 0, 419, 239), outline=(226, 228, 232))
+    splash.paste(mark, ((420 - 150) // 2, 26), mark)
+    draw = ImageDraw.Draw(splash)
+    draw.rectangle((0, 0, 419, 239), outline=(226, 228, 232))
+    text = "Starting Tevavid Tools Setup..."
+    font = ImageFont.load_default(size=15)
+    width = draw.textlength(text, font=font)
+    draw.text(((420 - width) / 2, 194), text, fill=(97, 101, 109), font=font)
     splash.save(icons / "splash.png")
     print("icons written")
 

@@ -390,3 +390,48 @@ def test_setup_knows_the_installed_copy(home, payload):
     system.manifest_path.write_text(json.dumps(manifest))
     found = gui.existing_install(system)
     assert found["offered"] == install.FIRST_RELEASE_TOOLS and found["newer"]
+
+
+class FakeWindow:
+    def __init__(self, shown=True, broken=False):
+        import threading
+
+        self.events = type("Events", (), {"shown": threading.Event()})()
+        if shown:
+            self.events.shown.set()
+        self.broken = broken
+        self.scripts = []
+        self.hidden = 0
+
+    def evaluate_js(self, script):
+        if self.broken:
+            raise RuntimeError("Main window failed to start")
+        self.scripts.append(script)
+
+    def hide(self):
+        self.hidden += 1
+
+
+def test_progress_skips_the_hidden_progress_window(home):
+    app = gui.SetupApp(FakeSystem(home))
+    app.main, app.mini = FakeWindow(), FakeWindow(shown=False)
+    state = {"status": "running", "percent": 30, "steps": [], "warnings": [], "error": None}
+    app._push(state)
+    app.hide_mini()
+    assert len(app.main.scripts) == 1 and app.mini.scripts == [] and app.mini.hidden == 0
+    app.mini.events.shown.set()  # setup was minimised, so the progress window is up
+    app._push(state)
+    app.hide_mini()
+    assert "setPercent(30" in app.mini.scripts[0] and app.mini.hidden == 1
+    app.main = FakeWindow(broken=True)
+    app._push(state)  # a window that cannot be updated is only logged
+
+
+def test_display_errors_do_not_fail_the_installation(home, payload):
+    system = FakeSystem(home)
+
+    def broken_display(state):
+        raise RuntimeError("Main window failed to start")
+
+    state = Installer(system, Options([], desktop_app=False), payload, broken_display, fake_downloader()).run()
+    assert state["status"] == "done" and (system.install_dir / "TevavidTools").exists()

@@ -138,8 +138,7 @@ class SetupApi:
         self._app.show_main()
 
     def hide_mini(self) -> None:
-        if self._app.mini:
-            self._app.mini.hide()
+        self._app.hide_mini()
 
     def close_toast(self) -> None:
         self._app.close_toast()
@@ -197,8 +196,16 @@ class SetupApp:
                 text = self.main.evaluate_js("document.getElementById('supported').textContent")
                 versions = self.main.evaluate_js("document.querySelectorAll('#toolList input').length")
                 if text and "Archicad" in text and versions:
-                    self.selftest_ok = True
-                    log.info("Setup window self-test passed: %s, %s tools listed", text, versions)
+                    # Progress reaches the windows without waiting on the hidden progress window.
+                    started = time.monotonic()
+                    self._push({"status": "running", "percent": 40, "warnings": [], "error": None,
+                                "steps": [{"key": "core", "label": "Installing core components", "state": "active"}]})
+                    self.hide_mini()
+                    took = time.monotonic() - started
+                    shown = self.main.evaluate_js("document.getElementById('pct').textContent")
+                    self.selftest_ok = took < 5 and shown == "40%"
+                    log.info("Setup window self-test %s: %s, %s tools listed, progress %s in %.1f s",
+                             "passed" if self.selftest_ok else "FAILED", text, versions, shown, took)
                     break
                 time.sleep(0.2)
             else:
@@ -238,8 +245,19 @@ class SetupApp:
 
     def _on_restored(self) -> None:
         self.minimized = False
-        if self.mini:
-            self.mini.hide()
+        self.hide_mini()
+
+    def _mini_shown(self) -> bool:
+        # pywebview waits for a window to be shown before talking to it, then throws: the progress
+        # window stays hidden until setup is minimised, so it is only used once it has been shown.
+        return bool(self.mini and self.mini.events.shown.is_set())
+
+    def hide_mini(self) -> None:
+        if self._mini_shown():
+            try:
+                self.mini.hide()
+            except Exception:
+                log.warning("Could not hide the progress window", exc_info=True)
 
     def _on_closing(self) -> bool:
         if self.installer is not None and self.result is None:
@@ -251,8 +269,7 @@ class SetupApp:
         return True
 
     def show_main(self) -> None:
-        if self.mini:
-            self.mini.hide()
+        self.hide_mini()
         if self.main:
             self.main.restore()
             self.main.show()
@@ -305,8 +322,7 @@ class SetupApp:
                 state["warnings"].append("Restart Claude Desktop to use the updated AI Assistant there.")
         self.result = state
         self._push(state)
-        if self.mini:
-            self.mini.hide()
+        self.hide_mini()
         if state["status"] == "done":
             self._show_toast()
 
@@ -315,12 +331,19 @@ class SetupApp:
             self._push(state)
 
     def _push(self, state: dict[str, Any]) -> None:
+        """Show progress in the windows. A window that cannot be updated never stops the installation."""
         if self.main:
-            self.main.evaluate_js(f"window.setup.progress({json.dumps(state)})")
-        if self.mini:
+            try:
+                self.main.evaluate_js(f"window.setup.progress({json.dumps(state)})")
+            except Exception:
+                log.warning("Could not update the setup window", exc_info=True)
+        if self._mini_shown():
             verb = ("Updating", "updated") if state.get("update") else ("Installing", "installed")
             label = f"{verb[0]} Tevavid Tools..." if state["status"] == "running" else f"Tevavid Tools is {verb[1]}."
-            self.mini.evaluate_js(f"window.setPercent({int(state['percent'])}, {json.dumps(label)})")
+            try:
+                self.mini.evaluate_js(f"window.setPercent({int(state['percent'])}, {json.dumps(label)})")
+            except Exception:
+                log.warning("Could not update the progress window", exc_info=True)
 
     def _copy_guide(self) -> None:
         """Keep the quick start guide next to the settings, where it outlives the setup program."""

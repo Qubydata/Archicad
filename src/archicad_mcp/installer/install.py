@@ -188,7 +188,14 @@ class Installer:
         percent = int(round(100 * done / total))
         if percent != self.state["percent"] or fraction in (0.0, 1.0):
             self.state["percent"] = percent
-            self.on_progress(self.state)
+            self._tell(self.state)
+
+    def _tell(self, state: dict[str, Any]) -> None:
+        """Report progress; a display problem must not stop or undo the installation."""
+        try:
+            self.on_progress(state)
+        except Exception:
+            log.warning("Progress display failed", exc_info=True)
 
     def run(self) -> dict[str, Any]:
         handlers = {
@@ -223,7 +230,7 @@ class Installer:
             shutil.rmtree(self.work, ignore_errors=True)
             if self._staging is not None:
                 shutil.rmtree(self._staging, ignore_errors=True)
-        self.on_progress(self.state)
+        self._tell(self.state)
         return self.state
 
     # --- steps --------------------------------------------------------------

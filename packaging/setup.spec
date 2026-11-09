@@ -27,9 +27,9 @@ analysis = Analysis(
 # more while antivirus scans it); the setup closes it when its window shows.
 splash = []
 if sys.platform == "win32":
+    # No text_pos: with text, the splash lists every file it unpacks ("zlib1.dll"...).
     splash_screen = Splash(str(ROOT / "packaging" / "icons" / "splash.png"), binaries=analysis.binaries,
-                           datas=analysis.datas, text_pos=(0, 222), text_size=10, text_color="#61656d",
-                           text_default="  Starting Tevavid Tools Setup...", always_on_top=False)
+                           datas=analysis.datas, text_pos=None, always_on_top=False)
     splash = [splash_screen, splash_screen.binaries]
 
 exe = EXE(
