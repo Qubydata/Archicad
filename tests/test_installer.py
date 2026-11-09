@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from archicad_mcp import __version__, launcher
+from archicad_mcp import __version__, launcher, suite
 from archicad_mcp.installer import gui, install
 from archicad_mcp.installer import system as sysmod
 from archicad_mcp.installer.install import Installer, Options
@@ -141,7 +141,8 @@ def test_full_install(home, payload, spawned):
     saved = json.loads(config.read_text())
     assert saved["other"] == 1 and "blender" in saved["mcpServers"]
     assert saved["mcpServers"]["archicad"]["args"] == ["-m", "archicad_mcp.launcher", "mcp"]
-    assert json.loads((system.data_dir / "config.json").read_text()) == {"auto_open_panel": True, "tools": ["assistant", "sun"]}
+    assert json.loads((system.data_dir / "config.json").read_text()) == {"auto_open_panel": True,
+                                                                          "tools": suite.default_tools("linux")}
 
     tapir_config = json.loads((system.tapir_scripts_dir.parent / "config.json").read_text())
     assert tapir_config["uvLocation"] == str(system.uv_dir / "uv")  # Tapir finds our uv without the PATH
@@ -257,9 +258,7 @@ def test_only_sun_analysis_skips_claude_desktop_and_keeps_settings(home, payload
 
 
 def test_suite_registry():
-    from archicad_mcp import suite
-
-    assert suite.default_tools("win32") == ["assistant", "sun"]
+    assert suite.default_tools("win32") == ["assistant", "sun", "site"]
     assert suite.clean(["sun", "assistant", "darkmode"], "win32") == ["assistant", "sun"]  # suite order, no coming-soon
     dark = suite.tool("darkmode")
     assert not dark.available and dark.supported("win32") and not dark.supported("darwin")
@@ -386,8 +385,8 @@ def test_setup_knows_the_installed_copy(home, payload):
     assert gui.existing_install(system) is None
     Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()
     found = gui.existing_install(system)
-    assert found["version"] == __version__ and found["tools"] == ["assistant", "sun"] and not found["newer"]
-    assert found["offered"] == ["assistant", "sun"]
+    assert found["version"] == __version__ and found["tools"] == suite.default_tools("linux") and not found["newer"]
+    assert found["offered"] == suite.default_tools("linux")
     manifest = install.read_manifest(system)
     del manifest["offered"]  # as written by 0.1.0
     manifest["version"] = "9.0.0"
@@ -454,3 +453,10 @@ def test_tapir_is_pointed_at_uv_and_restored(home, payload):
     assert next(a for a in manifest["actions"] if a["type"] == "tapir_uv")["previous"] == "C:/old/uv.exe"
     install.uninstall(system)
     assert json.loads(config.read_text())["uvLocation"] == "C:/old/uv.exe"
+
+
+def test_a_silent_update_turns_on_new_tools():
+    manifest = {"tools": ["sun"], "offered": ["assistant", "sun"], "targets": [], "options": {"desktopApp": False}}
+    assert Options.from_manifest(manifest, "linux").tools == ["sun", "site"]  # Site is new since that install
+    manifest["offered"] = ["assistant", "sun", "site"]
+    assert Options.from_manifest(manifest, "linux").tools == ["sun"]  # unticked on purpose: stays off

@@ -69,7 +69,10 @@ class Options:
     def from_manifest(cls, manifest: dict[str, Any], platform: str | None = None) -> Options:
         """The choices made at the last install, for an update that asks nothing."""
         targets = [ArchicadInstall(int(t["version"]), str(t["path"]), bool(t.get("detected"))) for t in manifest.get("targets", [])]
-        tools = suite.clean(manifest.get("tools", suite.default_tools(platform)), platform)
+        # The tools installed before, plus the tools that are new since (setup ticks those too).
+        offered = manifest.get("offered", FIRST_RELEASE_TOOLS)
+        new = [t for t in suite.default_tools(platform) if t not in offered]
+        tools = suite.clean(list(manifest.get("tools", suite.default_tools(platform))) + new, platform)
         chosen = manifest.get("options", {})
         return cls(targets, bool(chosen.get("installAddon", suite.needs_tapir(tools))), bool(chosen.get("desktopApp", True)), tools)
 

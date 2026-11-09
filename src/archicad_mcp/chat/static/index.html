@@ -192,6 +192,7 @@
     border-radius: 8px; padding: 6px 8px; width: 100%; outline: none; }
   .location-edit label, .sun-form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
   .sun-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sun-form label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text); }
   .sun-form .wide { grid-column: 1 / -1; }
   .quick-dates { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
   .quick-dates button, .metric-pills button { border: 1px solid var(--border-strong); border-radius: 14px; padding: 3px 10px; font-size: 12.5px; color: var(--text-2); }
@@ -240,6 +241,7 @@
   <nav class="tabs" id="tabs">
     <button data-tab="chat" class="active">Chat</button>
     <button data-tab="sun">Sun</button>
+    <button data-tab="site">Site</button>
     <button data-tab="tools">Tools</button>
     <button data-tab="library">Library</button>
     <button data-tab="settings">Settings</button>
@@ -383,6 +385,61 @@
       </div>
     </section>
 
+    <!-- Site from Map -->
+    <section class="tab" id="site" hidden>
+      <div class="sun-card">
+        <h3><span class="grow">Location</span></h3>
+        <div class="location-line" id="siteLocation">Reading the project location...</div>
+      </div>
+      <div class="sun-card">
+        <h3><span class="grow">From the map</span></h3>
+        <div class="sun-form">
+          <label>Site size
+            <select id="siteSize"><option value="100">100 x 100 m</option><option value="200">200 x 200 m</option><option value="300" selected>300 x 300 m</option><option value="500">500 x 500 m</option><option value="1000">1 x 1 km</option><option value="2000">2 x 2 km</option></select>
+          </label>
+          <label>Detail
+            <select id="siteSpacing"><option value="">Automatic</option><option value="2">Every 2 m</option><option value="5">Every 5 m</option><option value="10">Every 10 m</option></select>
+          </label>
+          <label class="wide">Heights
+            <select id="siteGround"><option value="origin">Ground at the project origin = 0</option><option value="altitude">True heights (from the project altitude)</option></select>
+          </label>
+          <label class="check wide" style="margin:2px 0"><input type="checkbox" id="siteBuildings" checked> <span>Neighbouring buildings (OpenStreetMap)</span></label>
+        </div>
+        <div class="run-row"><button class="primary" id="siteRun">Build the site</button></div>
+        <div class="empty-hint" style="margin-top:6px">Free elevation data, about &plusmn;2 to 5 m in height: right for context and slopes. For levels on a plot, use your survey below.</div>
+      </div>
+      <div class="sun-card">
+        <h3><span class="grow">From your survey</span></h3>
+        <div class="sun-form">
+          <label class="wide">Survey file (CSV or TXT points, DXF contours)
+            <input type="file" id="surveyFile" accept=".csv,.txt,.xyz,.pts,.dxf">
+          </label>
+          <label>Coordinates
+            <select id="surveyCoords"><option value="auto">Automatic</option><option value="map">Map (eastings, northings)</option><option value="project">Project coordinates</option></select>
+          </label>
+          <label>Columns
+            <select id="surveyOrder"><option value="auto">Automatic</option><option value="xyz">x, y, height</option><option value="penz">point, E, N, height</option><option value="pnez">point, N, E, height</option></select>
+          </label>
+          <label>Units
+            <select id="surveyUnits"><option value="auto">Automatic</option><option value="m">metres</option><option value="mm">millimetres</option><option value="cm">centimetres</option><option value="ft">feet</option></select>
+          </label>
+        </div>
+        <div class="run-row"><button class="primary" id="surveyRun">Build from the survey</button></div>
+        <div class="empty-hint" style="margin-top:6px">DWG drawings: save them as DXF first. Map coordinates are placed with the survey point (Options &gt; Project Preferences &gt; Location).</div>
+      </div>
+      <div id="siteProgress" hidden><div class="progress-bar"><div id="siteBar"></div></div><div class="empty-hint" id="siteMessage"></div></div>
+      <div class="error" id="siteError" style="color: var(--bad); font-size: 13px; margin: 8px 0"></div>
+      <div class="sun-card" id="siteResult" hidden>
+        <h3><span class="grow">On the model</span></h3>
+        <div class="sun-stats" id="siteStats"></div>
+        <ul class="sun-notes" id="siteNotes"></ul>
+        <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+          <button class="small-button" id="siteClearTerrain">Remove the terrain</button>
+          <button class="small-button" id="siteClearBuildings">Remove the buildings</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
       <div id="aiSettings">
@@ -423,6 +480,7 @@
   <button class="logo-button" title="Expand" data-expand="chat" aria-label="Tevavid Tools"><svg class="logo" viewBox="120 140 600 330" fill="currentColor" aria-hidden="true"><path d="M140 287 Q140 263 163 268 L292 302 Q306 306 314 319 L375 420 Q385 452 352 452 L162 452 Q140 452 140 430 Z"/><path d="M458 290 Q462 276 476 268 L664 168 Q698 152 698 190 L698 430 Q698 452 676 452 L434 452 Q403 452 412 424 Z"/></svg></button>
   <button class="nav active" data-expand="chat" title="Chat"><i data-icon="chat"></i></button>
   <button class="nav" data-expand="sun" title="Sun Analysis"><i data-icon="sun"></i></button>
+  <button class="nav" data-expand="site" title="Site from Map"><i data-icon="mountain"></i></button>
   <button class="nav" data-expand="tools" title="Tools"><i data-icon="grid"></i></button>
   <button class="nav" data-expand="library" title="Library"><i data-icon="cube"></i></button>
   <button class="nav" data-expand="settings" title="Settings"><i data-icon="gear"></i></button>
@@ -439,6 +497,8 @@ const ICONS = {
   grid: '<rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/>',
   cube: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   section: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8.5 16.5c1.2-2.2 4.8-2.2 6 0"/><path d="M12 11v2"/>',
+  mountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 9v12"/>',
   wall: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 9v6"/><path d="M16 15v6"/><path d="M16 3v6"/><path d="M3 15h18"/><path d="M3 9h18"/><path d="M8 15v6"/><path d="M8 3v6"/>',
@@ -534,6 +594,7 @@ function setTab(tab) {
   if (tab === "tools") loadCommands();
   if (tab === "settings") { refreshStatus(); refreshUpdate(); }
   if (tab === "sun") loadSun();
+  if (tab === "site") loadSite();
 }
 
 function setChatView(view) {
@@ -1016,6 +1077,97 @@ $("saveSettings").onclick = async () => {
 };
 
 
+/* ---- Site from Map ------------------------------------------------------- */
+
+async function streamJob(path, body, onProgress) {
+  // Runs a panel job that streams NDJSON progress; returns its final state, throws its error.
+  const response = await api(path, body);
+  if (!response.ok) throw new Error((await response.json()).error || `server answered ${response.status}`);
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = "", result = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline;
+    while ((newline = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1);
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.type === "progress") onProgress(event.fraction, event.message);
+      else if (event.type === "error") throw new Error(event.message);
+      else if (event.type === "result") result = event.state;
+    }
+  }
+  return result;
+}
+
+async function loadSite() {
+  let state;
+  try { state = await getJson("/api/site"); } catch (error) { return; }
+  const place = state.projectLocation;
+  if (place && (Math.abs(place.latitude) > 1e-9 || Math.abs(place.longitude) > 1e-9)) {
+    $("siteLocation").innerHTML = `${escapeHtml(formatLatLon(place.latitude, place.longitude))}, altitude ${escapeHtml(Math.round(place.altitude))} m`
+      + "<small>From Options &gt; Project Location in Archicad. The site is built around the project origin.</small>";
+  } else {
+    $("siteLocation").innerHTML = `<small>${escapeHtml(state.locationError || "The project location is not set: set it in Options > Project Location (address, or latitude and longitude).")}</small>`;
+  }
+  renderSite(state);
+}
+
+function renderSite(state) {
+  const last = state && state.last;
+  $("siteResult").hidden = !(state && (state.terrain || state.buildings));
+  if (!last) { $("siteStats").textContent = ""; $("siteNotes").innerHTML = ""; return; }
+  const e = last.elevation || {};
+  const parts = last.source === "map"
+    ? [`${last.size} x ${last.size} m, a height every ${last.spacing} m`, `ground ${e.min} to ${e.max} m above sea level`,
+       `${state.buildings} neighbouring buildings`]
+    : [`${last.points} points and ${last.lines} level lines from ${last.file}`, `heights ${e.min} to ${e.max} m`];
+  $("siteStats").textContent = parts.join(" · ");
+  $("siteNotes").innerHTML = (last.notes || []).map(n => `<li>${escapeHtml(n)}</li>`).join("");
+  $("siteClearBuildings").hidden = !state.buildings;
+  $("siteClearTerrain").hidden = !state.terrain;
+}
+
+async function runSite(path, body) {
+  $("siteError").textContent = "";
+  $("siteRun").disabled = $("surveyRun").disabled = true;
+  $("siteProgress").hidden = false;
+  $("siteBar").style.width = "0%";
+  try {
+    const state = await streamJob(path, body, (fraction, message) => {
+      $("siteBar").style.width = `${Math.round(fraction * 100)}%`; $("siteMessage").textContent = message;
+    });
+    if (state) renderSite(state);
+  } catch (error) {
+    $("siteError").textContent = error.message;
+  } finally {
+    $("siteRun").disabled = $("surveyRun").disabled = false;
+    $("siteProgress").hidden = true;
+  }
+}
+
+$("siteRun").onclick = () => runSite("/api/site/map", {
+  size: $("siteSize").value, spacing: $("siteSpacing").value, ground: $("siteGround").value, buildings: $("siteBuildings").checked,
+});
+$("surveyRun").onclick = async () => {
+  const file = $("surveyFile").files[0];
+  if (!file) { $("siteError").textContent = "Choose a survey file first."; return; }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+  runSite("/api/site/survey", { name: file.name, content: btoa(binary), coordinates: $("surveyCoords").value,
+                                order: $("surveyOrder").value, units: $("surveyUnits").value });
+};
+async function clearSite(what) {
+  const answer = await postJson("/api/site/clear", { what });
+  if (answer.error) { $("siteError").textContent = answer.error; return; }
+  loadSite();
+}
+$("siteClearTerrain").onclick = () => clearSite("terrain");
+$("siteClearBuildings").onclick = () => clearSite("buildings");
+
 /* ---- updates ------------------------------------------------------------ */
 
 let updateTimer = null, bannerClosed = false;
@@ -1083,7 +1235,7 @@ $("checkUpdates").onclick = async () => {
 /* ---- installed tools ----------------------------------------------------- */
 
 let installed = ["assistant", "sun"];
-const TAB_TOOL = { chat: "assistant", tools: "assistant", library: "assistant", sun: "sun" };
+const TAB_TOOL = { chat: "assistant", tools: "assistant", library: "assistant", sun: "sun", site: "site" };
 function tabAllowed(tab) { return !TAB_TOOL[tab] || installed.includes(TAB_TOOL[tab]); }
 function applyTools(tools) {
   installed = tools;
@@ -1255,7 +1407,7 @@ buildTools();
   await refreshStatus();
   const history = await loadHistory();
   if (history.items.length) chatView = "conversation";
-  const wanted = ["chat", "sun", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : null;
+  const wanted = ["chat", "sun", "site", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : null;
   const first = installed.includes("assistant") ? "chat" : installed.includes("sun") ? "sun" : "settings";
   const tab = wanted && tabAllowed(wanted) ? wanted : first;
   setTab(!hasKey && installed.includes("assistant") && !wanted ? "settings" : tab);

@@ -16,6 +16,7 @@ import base64
 import math
 import os
 import tempfile
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,6 +27,7 @@ from mcp.types import ToolAnnotations
 from . import catalog
 from .chat import config as app_config
 from .connection import ArchicadConnection, ArchicadError
+from .site.service import SiteService
 from .sun.service import SunAnalysis
 
 INSTRUCTIONS = """\
@@ -51,6 +53,7 @@ Ask before deleting elements or overwriting files the user did not mention.
 mcp = MCPServer(name="archicad", instructions=INSTRUCTIONS)
 archicad = ArchicadConnection()
 sun = SunAnalysis(archicad, app_config.CONFIG_DIR / "sun_tiles.json")
+site = SiteService(archicad, app_config.CONFIG_DIR)
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
 MODIFY = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
@@ -628,6 +631,56 @@ def sun_analysis_show(
 def sun_analysis_clear() -> dict[str, Any]:
     """Remove the sun analysis tiles from the model."""
     return sun.clear()
+
+
+# --- Site from Map -------------------------------------------------------------
+
+
+@mcp.tool(annotations=MODIFY)
+def site_from_map(
+    size: float = 300.0,
+    spacing: float | None = None,
+    include_buildings: bool = True,
+    ground: Literal["origin", "altitude"] = "origin",
+    origin_level: float = 0.0,
+) -> dict[str, Any]:
+    """Build the real terrain around the project location as an Archicad Mesh, with neighbouring buildings.
+
+    Uses the project location (Options > Project Location) and free elevation data (SRTM, about 30 m,
+    in most countries; finer national data in some), plus OpenStreetMap building footprints as blocks.
+    size: side of the square site in metres (20 to 3000). spacing: metres between height points
+    (default: about the data's own resolution). ground: "origin" puts the ground at the project origin
+    at origin_level; "altitude" uses the project altitude, so heights are true heights minus it.
+    Building again replaces the terrain (and the buildings, when included). Accuracy is about +/- 2 to 5 m:
+    for levels on a plot, use site_from_survey with the surveyor's points.
+    """
+    return site.from_map(size, spacing, include_buildings, ground, origin_level)
+
+
+@mcp.tool(annotations=MODIFY)
+def site_from_survey(
+    file_path: str,
+    coordinates: Literal["auto", "project", "map"] = "auto",
+    column_order: Literal["auto", "xyz", "penz", "pnez", "enz", "nez"] = "auto",
+    units: Literal["auto", "m", "cm", "mm", "ft", "in"] = "auto",
+) -> dict[str, Any]:
+    """Build the terrain Mesh from a surveyor's file: points (CSV/TXT) or contours and spot heights (DXF).
+
+    coordinates: "map" for eastings/northings, placed with the project's survey point; "project" when the
+    file already uses the project's coordinates; "auto" decides from the size of the numbers.
+    column_order for files without a header: penz = point, easting, northing, height; pnez = northing first.
+    DWG files must be saved as DXF first.
+    """
+    path = Path(file_path).expanduser()
+    if not path.is_file():
+        raise ArchicadError(f"No file at {path}.")
+    return site.from_survey(path.name, path.read_bytes(), coordinates, column_order, units)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+def site_clear(what: Literal["all", "terrain", "buildings"] = "all") -> dict[str, Any]:
+    """Remove the terrain and/or neighbouring buildings that Site from Map placed."""
+    return site.clear(what)
 
 
 # --- full API access ---------------------------------------------------------

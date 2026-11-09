@@ -7,6 +7,7 @@ address, so other web pages open in a browser cannot drive Archicad through it.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import queue
@@ -237,6 +238,7 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
     # --- Sun Analysis -----------------------------------------------------------
 
     sun = mcp_server.sun
+    site = mcp_server.site
 
     async def sun_state(request: Request) -> Response:
         state = sun.state()
@@ -351,6 +353,82 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         threading.Thread(target=work, daemon=True).start()
         return JSONResponse({**update_status(), "job": {**update_job, "running": True}})
 
+    def progress_stream(work) -> StreamingResponse:
+        """Run work(progress) in a thread and stream its progress, then its result or error, as NDJSON."""
+        updates: queue.Queue = queue.Queue()
+
+        def run():
+            try:
+                answer = work(lambda fraction, message: updates.put({"type": "progress", "fraction": fraction,
+                                                                     "message": message}))
+                updates.put({"type": "result", "state": answer})
+            except ArchicadError as exc:
+                updates.put({"type": "error", "message": str(exc)})
+            except Exception as exc:  # reported in the panel
+                logging.getLogger("archicad_mcp").exception("Panel job failed")
+                updates.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+            updates.put(None)
+
+        threading.Thread(target=run, daemon=True).start()
+
+        async def events():
+            while True:
+                try:
+                    item = updates.get_nowait()
+                except queue.Empty:
+                    await anyio.sleep(0.1)
+                    continue
+                if item is None:
+                    break
+                yield json.dumps(item) + "\n"
+
+        return StreamingResponse(events(), media_type="application/x-ndjson")
+
+    async def site_state(request: Request) -> Response:
+        state = site.state()
+        try:
+            place = await anyio.to_thread.run_sync(site.location)
+            place.pop("surveyPoint", None)
+            state["projectLocation"] = place
+        except ArchicadError as exc:
+            state["locationError"] = str(exc)
+        return JSONResponse(state)
+
+    async def site_map(request: Request) -> Response:
+        data = await request.json()
+        if site.lock.locked():
+            return JSONResponse({"error": "The site is already being built."}, status_code=409)
+        try:
+            size = float(data.get("size", 300))
+            spacing = float(data["spacing"]) if data.get("spacing") else None
+            level = float(data.get("originLevel", 0) or 0)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Size, spacing and level must be numbers."}, status_code=400)
+        ground = "altitude" if data.get("ground") == "altitude" else "origin"
+        return progress_stream(lambda progress: site.from_map(size, spacing, bool(data.get("buildings", True)),
+                                                              ground, level, progress))
+
+    async def site_survey(request: Request) -> Response:
+        data = await request.json()
+        if site.lock.locked():
+            return JSONResponse({"error": "The site is already being built."}, status_code=409)
+        try:
+            content = base64.b64decode(data["content"], validate=True)
+        except (KeyError, ValueError, TypeError):
+            return JSONResponse({"error": "Choose a survey file."}, status_code=400)
+        name = str(data.get("name") or "survey.csv")
+        options = {k: str(data.get(k) or "auto") for k in ("coordinates", "order", "units")}
+        return progress_stream(lambda progress: site.from_survey(name, content, options["coordinates"],
+                                                                 options["order"], options["units"], progress))
+
+    async def site_clear(request: Request) -> Response:
+        data = await request.json()
+        what = data.get("what") if data.get("what") in ("terrain", "buildings") else "all"
+        try:
+            return JSONResponse(await anyio.to_thread.run_sync(lambda: site.clear(what)))
+        except ArchicadError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
     async def panel_mode(request: Request) -> Response:
         """Resize the Archicad palette to the full or the compact panel, or open it."""
         data = await request.json()
@@ -383,6 +461,10 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         ("/api/sun/run", sun_run, ["POST"]),
         ("/api/sun/show", sun_show, ["POST"]),
         ("/api/sun/clear", sun_clear, ["POST"]),
+        ("/api/site", site_state, ["GET"]),
+        ("/api/site/map", site_map, ["POST"]),
+        ("/api/site/survey", site_survey, ["POST"]),
+        ("/api/site/clear", site_clear, ["POST"]),
         ("/api/update", update_state, ["GET"]),
         ("/api/update/check", update_check, ["POST"]),
         ("/api/update/install", update_install, ["POST"]),

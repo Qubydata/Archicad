@@ -234,3 +234,49 @@ def test_site_from_survey(site):
     assert state["last"]["source"] == "survey" and state["last"]["elevation"] == {"min": 1.0, "max": 4.0}
     with pytest.raises(ArchicadError, match="DXF"):
         service.from_survey("plan.dwg", b"x")
+
+
+def test_site_in_the_panel_and_for_the_assistant(site, monkeypatch, tmp_path):
+    import base64
+
+    import anyio
+    from mcp import Client
+    from starlette.testclient import TestClient
+
+    from archicad_mcp import server
+    from archicad_mcp.chat import config, web
+
+    fake, service, _ = site
+    monkeypatch.setattr(server, "site", service)
+    monkeypatch.setattr(server.archicad, "_port", fake.port)
+    monkeypatch.setattr(config, "CONFIG_DIR", tmp_path / "home")
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "home" / "config.json")
+    client = TestClient(web.create_app(8765, token="secret"), base_url="http://127.0.0.1:8765")
+    headers = {"x-tevavid-token": "secret"}
+
+    state = client.get("/api/site", headers=headers).json()
+    assert state["terrain"] == 0 and state["projectLocation"]["latitude"] == 51.5 and "surveyPoint" not in state["projectLocation"]
+    events = [json.loads(line) for line in client.post("/api/site/map", json={"size": 200, "buildings": True},
+                                                       headers=headers).text.splitlines()]
+    assert events[0]["type"] == "progress" and events[-1]["type"] == "result"
+    assert events[-1]["state"]["terrain"] == 1 and events[-1]["state"]["buildings"] == 3
+
+    csv_text = "x,y,z\n0,0,1\n20,0,2\n20,20,3\n0,20,2.5\n"
+    events = [json.loads(line) for line in client.post("/api/site/survey", headers=headers, json={
+        "name": "levels.csv", "content": base64.b64encode(csv_text.encode()).decode()}).text.splitlines()]
+    assert events[-1]["state"]["last"]["source"] == "survey"
+    bad = [json.loads(line) for line in client.post("/api/site/survey", headers=headers, json={
+        "name": "plan.dwg", "content": base64.b64encode(b"x").decode()}).text.splitlines()]
+    assert bad[-1]["type"] == "error" and "DXF" in bad[-1]["message"]
+    assert client.post("/api/site/survey", json={"name": "a.csv"}, headers=headers).status_code == 400
+
+    assert client.post("/api/site/clear", json={"what": "buildings"}, headers=headers).json()["removed"] == {"buildings": 3}
+
+    async def call():
+        async with Client(server.mcp) as mcp_client:
+            path = tmp_path / "points.csv"
+            path.write_text(csv_text)
+            return await mcp_client.call_tool("site_from_survey", {"file_path": str(path)})
+
+    answer = anyio.run(call)
+    assert not answer.is_error and answer.structured_content["last"]["points"] == 4
