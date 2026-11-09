@@ -258,7 +258,7 @@ def test_only_sun_analysis_skips_claude_desktop_and_keeps_settings(home, payload
 
 
 def test_suite_registry():
-    assert suite.default_tools("win32") == ["assistant", "sun", "site"]
+    assert suite.default_tools("win32") == ["assistant", "sun", "site", "import"]
     assert suite.clean(["sun", "assistant", "darkmode"], "win32") == ["assistant", "sun"]  # suite order, no coming-soon
     dark = suite.tool("darkmode")
     assert not dark.available and dark.supported("win32") and not dark.supported("darwin")
@@ -457,8 +457,8 @@ def test_tapir_is_pointed_at_uv_and_restored(home, payload):
 
 def test_a_silent_update_turns_on_new_tools():
     manifest = {"tools": ["sun"], "offered": ["assistant", "sun"], "targets": [], "options": {"desktopApp": False}}
-    assert Options.from_manifest(manifest, "linux").tools == ["sun", "site"]  # Site is new since that install
-    manifest["offered"] = ["assistant", "sun", "site"]
+    assert Options.from_manifest(manifest, "linux").tools == ["sun", "site", "import"]  # new since that install
+    manifest["offered"] = ["assistant", "sun", "site", "import"]
     assert Options.from_manifest(manifest, "linux").tools == ["sun"]  # unticked on purpose: stays off
 
 

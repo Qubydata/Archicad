@@ -61,8 +61,8 @@
   .brand p { margin: 1px 0 0; color: var(--muted); font-size: 13px; }
   .icon-button { width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); }
   .icon-button:hover { background: var(--surface); }
-  .tabs { display: flex; gap: 22px; padding: 14px 20px 0; }
-  .tabs button { position: relative; padding: 8px 0 11px; color: var(--muted); font-size: 15.5px; }
+  .tabs { display: flex; gap: 14px; padding: 14px 18px 0; }
+  .tabs button { position: relative; padding: 8px 0 11px; color: var(--muted); font-size: 14.5px; }
   .tabs button:hover { color: var(--text-2); }
   .tabs button.active { color: var(--accent); font-weight: 600; }
   .tabs button.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px; background: var(--accent); }
@@ -187,11 +187,30 @@
   .location-line { font-size: 14px; color: var(--text); }
   .location-line small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
   .location-edit { display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 8px; margin-top: 8px; }
-  .location-edit input, .sun-form select, .sun-form input[type=date], .advanced input[type=number] {
+  .location-edit input, .sun-form select, .sun-form input[type=date], .sun-form input:not([type]), .advanced input[type=number], #importCopies {
     font: 13.5px var(--font); color: var(--text); background: var(--bg); border: 1px solid var(--border-strong);
     border-radius: 8px; padding: 6px 8px; width: 100%; outline: none; }
   .location-edit label, .sun-form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
   .sun-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: none; }
+  .import-preview { width: 100%; aspect-ratio: 1 / 1; max-height: 300px; object-fit: contain; border-radius: 10px; background: var(--surface); display: block; }
+  .budget { height: 10px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin: 8px 0 4px; }
+  .budget div { height: 100%; width: 0; transition: width .2s, background .2s; }
+  .budget-green { background: #16a34a; } .budget-amber { background: #d97706; } .budget-red { background: #dc2626; }
+  .budget-text { font-size: 13px; color: var(--text-2); }
+  .parts { list-style: none; margin: 6px 0 0; padding: 0; max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .parts li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .parts li:last-child { border-bottom: 0; }
+  .parts li.small { background: color-mix(in srgb, #d97706 12%, transparent); }
+  .parts li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .parts li .meta { color: var(--muted); font-size: 12px; flex: none; }
+  .parts li.gone .grow { color: var(--faint); text-decoration: line-through; }
+  .row-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .downloads { list-style: none; margin: 6px 0 0; padding: 0; }
+  .downloads li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
+  .downloads li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sun-form label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text); }
   .sun-form .wide { grid-column: 1 / -1; }
   .quick-dates { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
@@ -242,6 +261,7 @@
     <button data-tab="chat" class="active">Chat</button>
     <button data-tab="sun">Sun</button>
     <button data-tab="site">Site</button>
+    <button data-tab="import">Import</button>
     <button data-tab="tools">Tools</button>
     <button data-tab="library">Library</button>
     <button data-tab="settings">Settings</button>
@@ -440,6 +460,76 @@
       </div>
     </section>
 
+    <!-- Model Import -->
+    <section class="tab" id="import" hidden>
+      <div class="sun-card">
+        <h3><span class="grow">Bring in a model</span></h3>
+        <div id="importDownloads"></div>
+        <div class="sun-form">
+          <label class="wide">3D file (FBX, OBJ, glTF/GLB, 3DS, DAE, STL, PLY, 3MF, or a ZIP with one)
+            <input type="file" id="importFile" accept=".fbx,.obj,.gltf,.glb,.3ds,.dae,.stl,.ply,.off,.3mf,.zip,.skp">
+          </label>
+        </div>
+        <div class="empty-hint" id="importLicense" style="margin-top:6px"></div>
+      </div>
+      <div id="importProgress" hidden><div class="progress-bar"><div id="importBar"></div></div><div class="empty-hint" id="importMessage"></div></div>
+      <div class="error" id="importError" style="color: var(--bad); font-size: 13px; margin: 8px 0"></div>
+
+      <div id="importModel" hidden>
+        <div class="sun-card">
+          <h3><span class="grow" id="importName"></span><button class="link-button" id="importClose">Close</button></h3>
+          <img class="import-preview" id="importPreview" alt="Preview of the model">
+          <div class="sun-stats" id="importSize"></div>
+          <div class="sun-form" style="margin-top:8px">
+            <label>Units in the file <select id="importUnit"></select></label>
+            <label>Up is <select id="importUp"></select></label>
+          </div>
+          <div class="row-buttons">
+            <button class="small-button" id="importTurn"><i data-icon="rotate"></i> Turn 90°</button>
+            <button class="small-button" id="importUndo"><i data-icon="undo"></i> Undo</button>
+          </div>
+          <ul class="sun-notes" id="importNotes"></ul>
+        </div>
+
+        <div class="sun-card">
+          <h3><span class="grow">Polygons</span></h3>
+          <div class="budget"><div id="importBudgetBar"></div></div>
+          <div class="budget-text" id="importBudget"></div>
+          <div class="time-row">
+            <span class="empty-hint">Detail</span>
+            <input type="range" id="importLevel" min="0" max="0" value="0">
+            <span class="clock" id="importLevelText" style="width:auto"></span>
+          </div>
+          <label class="check" style="margin:8px 0 0"><span>Copies in the project</span>
+            <select id="importCopies" style="margin-left:auto; width:auto"><option value="1">1 to 9</option><option value="10">10 to 19</option><option value="20">20 or more</option></select>
+          </label>
+        </div>
+
+        <div class="sun-card">
+          <h3><span class="grow">Parts</span><span class="empty-hint" id="importPartCount"></span></h3>
+          <div class="empty-hint">Untick a part to remove it.</div>
+          <ul class="parts" id="importParts"></ul>
+          <div class="row-buttons"><button class="small-button" id="importSmall">Remove small parts</button></div>
+        </div>
+
+        <div class="sun-card">
+          <h3><span class="grow">Save to your library</span></h3>
+          <div class="sun-form">
+            <label class="wide">Name <input id="importObjectName"></label>
+            <label class="wide">Folder <select id="importFolder"></select></label>
+            <label class="wide" id="importNewFolderRow" hidden>New folder, e.g. Furniture &gt; Tables <input id="importNewFolder" placeholder="Furniture > Tables"></label>
+            <label class="wide">Save in
+              <select id="importTarget"><option value="shared">My Tevavid Library (every project)</option><option value="embedded">This project only</option></select>
+            </label>
+            <label class="check wide" style="margin:2px 0"><input type="checkbox" id="importPlace" checked> <span>Place it in the model, where I click</span></label>
+          </div>
+          <div class="run-row"><button class="primary" id="importSave">Save to library</button></div>
+          <div class="empty-hint" id="importConverter" style="margin-top:6px"></div>
+          <div class="sun-stats" id="importSaved"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- Settings -->
     <section class="tab" id="settings" hidden>
       <div id="aiSettings">
@@ -481,6 +571,7 @@
   <button class="nav active" data-expand="chat" title="Chat"><i data-icon="chat"></i></button>
   <button class="nav" data-expand="sun" title="Sun Analysis"><i data-icon="sun"></i></button>
   <button class="nav" data-expand="site" title="Site from Map"><i data-icon="mountain"></i></button>
+  <button class="nav" data-expand="import" title="Model Import"><i data-icon="box"></i></button>
   <button class="nav" data-expand="tools" title="Tools"><i data-icon="grid"></i></button>
   <button class="nav" data-expand="library" title="Library"><i data-icon="cube"></i></button>
   <button class="nav" data-expand="settings" title="Settings"><i data-icon="gear"></i></button>
@@ -498,6 +589,9 @@ const ICONS = {
   cube: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   section: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8.5 16.5c1.2-2.2 4.8-2.2 6 0"/><path d="M12 11v2"/>',
   mountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+  rotate: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 9v12"/>',
@@ -595,6 +689,7 @@ function setTab(tab) {
   if (tab === "settings") { refreshStatus(); refreshUpdate(); }
   if (tab === "sun") loadSun();
   if (tab === "site") loadSite();
+  if (tab === "import") loadImport();
 }
 
 function setChatView(view) {
@@ -1168,6 +1263,190 @@ async function clearSite(what) {
 $("siteClearTerrain").onclick = () => clearSite("terrain");
 $("siteClearBuildings").onclick = () => clearSite("buildings");
 
+/* ---- Model Import --------------------------------------------------------- */
+
+let imported = null, importStarted = Date.now() / 1000 - 24 * 3600, previewUrl = null;
+const importCopies = () => Number($("importCopies").value || 1);
+
+function fileToBase64(file) {
+  return file.arrayBuffer().then(buffer => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(binary);
+  });
+}
+
+async function loadImport() {
+  let state;
+  try { state = await getJson(`/api/import?placements=${importCopies()}`); } catch (error) { return; }
+  $("importLicense").textContent = state.licenseReminder || "";
+  $("importConverter").textContent = state.converter && !state.converter.found ? state.converter.message : "";
+  renderImport(state);
+  loadDownloads();
+  loadFolders();
+}
+
+async function loadDownloads() {
+  let answer;
+  try { answer = await getJson(`/api/import/downloads?since=${importStarted}`); } catch (error) { return; }
+  const files = (answer.files || []).slice(0, 5);
+  $("importDownloads").innerHTML = files.length
+    ? '<div class="empty-hint">New in your Downloads folder:</div><ul class="downloads">' + files.map((f, i) =>
+        `<li><span class="grow" title="${escapeHtml(f.path)}">${escapeHtml(f.name)}</span>` +
+        (f.readable === false ? '<span class="empty-hint">Use Archicad\u2019s File &gt; Merge</span>'
+                              : `<button class="small-button" data-download="${i}">Import</button>`) + "</li>").join("") + "</ul>"
+    : "";
+  $("importDownloads").querySelectorAll("[data-download]").forEach(b =>
+    b.onclick = () => openModel({ path: files[Number(b.dataset.download)].path }));
+}
+
+async function loadFolders() {
+  let tree;
+  try { tree = await getJson(`/api/import/library?target=${$("importTarget").value}`); } catch (error) { return; }
+  const paths = [];
+  (function walk(node, prefix) {
+    for (const child of node.folders || []) {
+      const path = prefix ? `${prefix}/${child.name}` : child.name;
+      paths.push(path);
+      walk(child, path);
+    }
+  })(tree, "");
+  const suggested = (imported && imported.suggestedFolders) || [];
+  const all = Array.from(new Set([...paths, ...suggested])).sort();
+  const current = $("importFolder").value;
+  $("importFolder").innerHTML = '<option value="">(top of the library)</option>' +
+    all.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p.replaceAll("/", " > "))}</option>`).join("") +
+    '<option value="__new">New folder...</option>';
+  if (current && [...$("importFolder").options].some(o => o.value === current)) $("importFolder").value = current;
+}
+
+function renderImport(state) {
+  imported = state;
+  $("importModel").hidden = !state.hasModel;
+  if (!state.hasModel) return;
+  $("importName").textContent = state.name;
+  const size = state.size;
+  $("importSize").textContent = `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)} m (width x depth x height)`;
+  $("importUnit").innerHTML = state.units.map(u => `<option value="${u.id}">${escapeHtml(u.label)}</option>`).join("");
+  $("importUnit").value = state.unit;
+  $("importUp").innerHTML = state.upAxes.map(a => `<option value="${a}">${a}</option>`).join("");
+  $("importUp").value = state.upAxis;
+  $("importUndo").disabled = !state.canUndo;
+  $("importNotes").innerHTML = (state.notes || []).map(n => `<li>${escapeHtml(n)}</li>`).join("");
+  if (!$("importObjectName").value || $("importObjectName").dataset.model !== state.file) {
+    $("importObjectName").value = state.name;
+    $("importObjectName").dataset.model = state.file;
+  }
+  const b = state.budget;
+  $("importBudgetBar").className = `budget-${b.colour}`;
+  $("importBudgetBar").style.width = `${Math.min(100, Math.round(100 * b.triangles / b.amber))}%`;
+  $("importBudget").textContent = b.message;
+  $("importLevel").max = Math.max(0, state.levels.length - 1);
+  $("importLevel").value = state.level;
+  const level = state.levels[state.level];
+  $("importLevelText").textContent = level ? `${level.triangles.toLocaleString()}` : "";
+  const kept = state.parts.filter(p => !p.deleted).length;
+  $("importPartCount").textContent = `${kept} of ${state.parts.length} kept`;
+  $("importParts").innerHTML = state.parts.map(p =>
+    `<li class="${p.deleted ? "gone" : ""}" data-part="${escapeHtml(p.id)}"><input type="checkbox" ${p.deleted ? "" : "checked"}>` +
+    `<span class="grow">${escapeHtml(p.name)}</span><span class="meta">${p.triangles.toLocaleString()} · ${escapeHtml(p.materialName || "")}</span></li>`).join("");
+  $("importParts").querySelectorAll("li").forEach(li => li.querySelector("input").onchange = event =>
+    importEdit(event.target.checked ? "restore" : "delete", { ids: [li.dataset.part] }));
+  showPreview();
+}
+
+async function showPreview() {
+  try {
+    const response = await api(`/api/import/preview?level=${imported.level}`);
+    if (!response.ok) return;
+    const blob = await response.blob();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(blob);
+    $("importPreview").src = previewUrl;
+  } catch (error) { /* the preview is a convenience */ }
+}
+
+async function importEdit(action, extra = {}) {
+  $("importError").textContent = "";
+  const answer = await postJson("/api/import/edit", { action, placements: importCopies(), ...extra });
+  if (answer.error) { $("importError").textContent = answer.error; loadImport(); return; }
+  if (action === "close") { renderImport(answer); return; }
+  renderImport(answer);
+}
+
+async function runImport(path, body, done) {
+  $("importError").textContent = "";
+  $("importSave").disabled = true;
+  $("importProgress").hidden = false;
+  $("importBar").style.width = "0%";
+  try {
+    const state = await streamJob(path, body, (fraction, message) => {
+      $("importBar").style.width = `${Math.round(fraction * 100)}%`; $("importMessage").textContent = message;
+    });
+    if (state) done(state);
+  } catch (error) {
+    $("importError").textContent = error.message;
+  } finally {
+    $("importSave").disabled = false;
+    $("importProgress").hidden = true;
+  }
+}
+
+function openModel(source) {
+  $("importSaved").textContent = "";
+  runImport("/api/import/open", { ...source, placements: importCopies() }, state => { renderImport(state); loadFolders(); });
+}
+
+$("importFile").onchange = async () => {
+  const file = $("importFile").files[0];
+  if (!file) return;
+  openModel({ name: file.name, content: await fileToBase64(file) });
+  $("importFile").value = "";
+};
+$("importClose").onclick = () => importEdit("close");
+$("importUndo").onclick = () => importEdit("undo");
+$("importTurn").onclick = () => importEdit("turn", { value: ((imported.turn || 0) + 90) % 360 });
+$("importUnit").onchange = () => importEdit("unit", { value: $("importUnit").value });
+$("importUp").onchange = () => importEdit("upAxis", { value: $("importUp").value });
+$("importCopies").onchange = () => importEdit("placements");
+let levelTimer = null;
+$("importLevel").oninput = () => {
+  const level = imported.levels[Number($("importLevel").value)];
+  if (level) $("importLevelText").textContent = level.triangles.toLocaleString();
+  clearTimeout(levelTimer);
+  levelTimer = setTimeout(() => importEdit("level", { value: Number($("importLevel").value) }), 150);
+};
+$("importSmall").onclick = async () => {
+  const answer = await getJson("/api/import/small?fraction=0.01");
+  const ids = answer.ids || [];
+  if (!ids.length) { $("importError").textContent = "No small parts to remove."; return; }
+  $("importParts").querySelectorAll("li").forEach(li => li.classList.toggle("small", ids.includes(li.dataset.part)));
+  setTimeout(() => importEdit("removeSmall", { fraction: 0.01 }), 600);
+};
+$("importTarget").onchange = loadFolders;
+$("importFolder").onchange = () => { $("importNewFolderRow").hidden = $("importFolder").value !== "__new"; };
+$("importSave").onclick = async () => {
+  let folder = $("importFolder").value;
+  if (folder === "__new") {
+    folder = $("importNewFolder").value.trim();
+    if (!folder) { $("importError").textContent = "Type the new folder's name."; return; }
+    const made = await postJson("/api/import/folder", { folder, target: $("importTarget").value });
+    if (made.error) { $("importError").textContent = made.error; return; }
+  }
+  const place = $("importPlace").checked;
+  runImport("/api/import/save", {
+    name: $("importObjectName").value.trim(), folder, target: $("importTarget").value,
+    place, pickPoint: place, placements: importCopies(),
+  }, result => {
+    const where = result.mode === "morphs" ? "Placed as Morph elements (Archicad's library converter was not found)."
+      : `Saved ${result.name || ""}${result.folder ? " in " + result.folder.replaceAll("/", " > ") : ""}.`;
+    $("importSaved").textContent = where + (result.placed ? " Placed in the model." : "");
+    $("importNewFolderRow").hidden = true;
+    loadFolders();
+  });
+};
+
 /* ---- updates ------------------------------------------------------------ */
 
 let updateTimer = null, bannerClosed = false;
@@ -1235,7 +1514,7 @@ $("checkUpdates").onclick = async () => {
 /* ---- installed tools ----------------------------------------------------- */
 
 let installed = ["assistant", "sun"];
-const TAB_TOOL = { chat: "assistant", tools: "assistant", library: "assistant", sun: "sun", site: "site" };
+const TAB_TOOL = { chat: "assistant", tools: "assistant", library: "assistant", sun: "sun", site: "site", import: "import" };
 function tabAllowed(tab) { return !TAB_TOOL[tab] || installed.includes(TAB_TOOL[tab]); }
 function applyTools(tools) {
   installed = tools;
@@ -1407,7 +1686,7 @@ buildTools();
   await refreshStatus();
   const history = await loadHistory();
   if (history.items.length) chatView = "conversation";
-  const wanted = ["chat", "sun", "site", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : null;
+  const wanted = ["chat", "sun", "site", "import", "tools", "library", "settings"].includes(params.get("tab")) ? params.get("tab") : null;
   const first = installed.includes("assistant") ? "chat" : installed.includes("sun") ? "sun" : "settings";
   const tab = wanted && tabAllowed(wanted) ? wanted : first;
   setTab(!hasKey && installed.includes("assistant") && !wanted ? "settings" : tab);

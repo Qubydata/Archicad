@@ -36,6 +36,7 @@ TOOLS: tuple[Tool, ...] = (
     Tool("assistant", "AI Assistant", "Chat with Claude to change your model, here or from Claude Desktop."),
     Tool("sun", "Sun Analysis", "Live sunlight and daylight maps on your rooms in the 3D window."),
     Tool("site", "Site from Map", "The real terrain and neighbouring buildings around your project, or your surveyor's points."),
+    Tool("import", "Model Import", "Bring in 3D models (FBX, OBJ, glTF...), remove parts, reduce polygons, save to your library."),
     Tool("darkmode", "Dark Mode", "A dark interface for Archicad 25 to 29 on Windows.", needs_tapir=False,
          platforms=("win32",), available=False, note="Coming soon"),
 )

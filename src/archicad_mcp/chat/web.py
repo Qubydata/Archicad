@@ -12,9 +12,11 @@ import json
 import logging
 import queue
 import secrets
+import tempfile
 import threading
 import time
 from importlib import resources
+from pathlib import Path
 from typing import Any
 
 import anthropic
@@ -22,6 +24,7 @@ import anyio
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from mcp.server.mcpserver.exceptions import ToolError
 from starlette.routing import Route
 
 from .. import __version__, catalog, claude_desktop
@@ -362,7 +365,7 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
                 answer = work(lambda fraction, message: updates.put({"type": "progress", "fraction": fraction,
                                                                      "message": message}))
                 updates.put({"type": "result", "state": answer})
-            except ArchicadError as exc:
+            except ToolError as exc:  # ArchicadError, ModelImportError: their messages are for the user
                 updates.put({"type": "error", "message": str(exc)})
             except Exception as exc:  # reported in the panel
                 logging.getLogger("archicad_mcp").exception("Panel job failed")
@@ -429,6 +432,101 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         except ArchicadError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
 
+    # --- Model Import -------------------------------------------------------------
+
+    importer = mcp_server.model_import
+
+    def placements_of(data) -> int:
+        try:
+            return max(1, int(data.get("placements", 1)))
+        except (TypeError, ValueError):
+            return 1
+
+    async def import_call(function) -> Response:
+        try:
+            return JSONResponse(await anyio.to_thread.run_sync(function))
+        except ToolError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+    async def import_state(request: Request) -> Response:
+        placements = placements_of(request.query_params)
+        return await import_call(lambda: {**importer.state(placements), "converter": importer.converter_status()})
+
+    async def import_open(request: Request) -> Response:
+        data = await request.json()
+        if data.get("path"):  # a file from the Downloads list
+            path = Path(str(data["path"]))
+            if not any(path == Path(item["path"]) for item in importer.new_downloads(0)):
+                return JSONResponse({"error": "Only models in the Downloads folder can be opened by path."}, status_code=400)
+        else:
+            try:
+                content = base64.b64decode(data["content"], validate=True)
+            except (KeyError, ValueError, TypeError):
+                return JSONResponse({"error": "Choose a 3D model file."}, status_code=400)
+            name = Path(str(data.get("name") or "model")).name
+            folder = Path(tempfile.mkdtemp(prefix="upload-", dir=_work_dir()))
+            path = folder / name
+            path.write_bytes(content)
+        placements = placements_of(data)
+        return progress_stream(lambda progress: importer.open(path, data.get("unit") or None, data.get("upAxis") or None,
+                                                              placements, progress))
+
+    def _work_dir() -> Path:
+        importer.work_dir.mkdir(parents=True, exist_ok=True)
+        return importer.work_dir
+
+    async def import_edit(request: Request) -> Response:
+        data = await request.json()
+        placements = placements_of(data)
+        action = data.get("action")
+        actions = {
+            "delete": lambda: importer.delete_parts(list(data.get("ids") or []), placements),
+            "restore": lambda: importer.restore_parts(data.get("ids"), placements),
+            "removeSmall": lambda: importer.remove_small_parts(float(data.get("fraction", 0.01)), placements),
+            "undo": lambda: importer.undo(placements),
+            "unit": lambda: importer.set_unit(str(data.get("value")), placements),
+            "upAxis": lambda: importer.set_up_axis(str(data.get("value")), placements),
+            "turn": lambda: importer.set_turn(float(data.get("value", 0)), placements),
+            "level": lambda: importer.set_level(int(data.get("value", 0)), placements),
+            "placements": lambda: importer.state(placements),
+            "close": lambda: importer.close(),
+        }
+        if action not in actions:
+            return JSONResponse({"error": f"Unknown action {action!r}."}, status_code=400)
+        return await import_call(actions[action])
+
+    async def import_small(request: Request) -> Response:
+        fraction = float(request.query_params.get("fraction", 0.01))
+        return await import_call(lambda: {"ids": importer.small_parts(fraction)})
+
+    async def import_preview(request: Request) -> Response:
+        level = request.query_params.get("level")
+        try:
+            png = await anyio.to_thread.run_sync(lambda: importer.preview(320, int(level) if level else None))
+        except ToolError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    async def import_downloads(request: Request) -> Response:
+        since = float(request.query_params.get("since", 0) or 0)
+        return await import_call(lambda: {"files": importer.new_downloads(since)})
+
+    async def import_library(request: Request) -> Response:
+        target = "embedded" if request.query_params.get("target") == "embedded" else "shared"
+        return await import_call(lambda: importer.library_tree(target))
+
+    async def import_folder(request: Request) -> Response:
+        data = await request.json()
+        target = "embedded" if data.get("target") == "embedded" else "shared"
+        return await import_call(lambda: importer.create_folder(str(data.get("folder", "")), target))
+
+    async def import_save(request: Request) -> Response:
+        data = await request.json()
+        target = "embedded" if data.get("target") == "embedded" else "shared"
+        return progress_stream(lambda progress: importer.save(
+            str(data.get("name") or "") or None, str(data.get("folder") or ""), target, bool(data.get("place")),
+            None, bool(data.get("pickPoint")), placements_of(data), progress))
+
     async def panel_mode(request: Request) -> Response:
         """Resize the Archicad palette to the full or the compact panel, or open it."""
         data = await request.json()
@@ -465,6 +563,15 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         ("/api/site/map", site_map, ["POST"]),
         ("/api/site/survey", site_survey, ["POST"]),
         ("/api/site/clear", site_clear, ["POST"]),
+        ("/api/import", import_state, ["GET"]),
+        ("/api/import/open", import_open, ["POST"]),
+        ("/api/import/edit", import_edit, ["POST"]),
+        ("/api/import/small", import_small, ["GET"]),
+        ("/api/import/preview", import_preview, ["GET"]),
+        ("/api/import/downloads", import_downloads, ["GET"]),
+        ("/api/import/library", import_library, ["GET"]),
+        ("/api/import/folder", import_folder, ["POST"]),
+        ("/api/import/save", import_save, ["POST"]),
         ("/api/update", update_state, ["GET"]),
         ("/api/update/check", update_check, ["POST"]),
         ("/api/update/install", update_install, ["POST"]),

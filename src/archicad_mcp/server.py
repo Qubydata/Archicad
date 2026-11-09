@@ -27,6 +27,7 @@ from mcp.types import ToolAnnotations
 from . import catalog
 from .chat import config as app_config
 from .connection import ArchicadConnection, ArchicadError
+from .modelimport.service import ModelImport
 from .site.service import SiteService
 from .sun.service import SunAnalysis
 
@@ -54,6 +55,7 @@ mcp = MCPServer(name="archicad", instructions=INSTRUCTIONS)
 archicad = ArchicadConnection()
 sun = SunAnalysis(archicad, app_config.CONFIG_DIR / "sun_tiles.json")
 site = SiteService(archicad, app_config.CONFIG_DIR)
+model_import = ModelImport(archicad, work_dir=app_config.CONFIG_DIR / "model-import")
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
 MODIFY = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
@@ -681,6 +683,64 @@ def site_from_survey(
 def site_clear(what: Literal["all", "terrain", "buildings"] = "all") -> dict[str, Any]:
     """Remove the terrain and/or neighbouring buildings that Site from Map placed."""
     return site.clear(what)
+
+
+# --- Model Import ----------------------------------------------------------------
+
+
+@mcp.tool(annotations=READ_ONLY)
+def model_import_open(file_path: str, unit: str | None = None, up_axis: str | None = None) -> dict[str, Any]:
+    """Open a 3D model to bring into Archicad: FBX, OBJ, glTF/GLB, 3DS, DAE, STL, PLY, 3MF, or a ZIP with one.
+
+    Returns its parts (id, name, polygons, material), size in metres, the polygon levels for reduction
+    and a polygon budget (green/amber/red). unit (mm, cm, m, inch, ft) and up_axis (Z, Y, X, -Z, -Y, -X)
+    override what was read from the file. Then edit with model_import_edit and save with model_import_save.
+    SketchUp files are not read: use Archicad's own File > Interoperability > Merge for them.
+    """
+    return model_import.open(Path(file_path).expanduser(), unit, up_axis)
+
+
+@mcp.tool(annotations=READ_ONLY)
+def model_import_edit(
+    delete_parts: list[str] | None = None,
+    restore_parts: list[str] | None = None,
+    remove_small_parts: bool = False,
+    level: int | None = None,
+    turn: float | None = None,
+    undo: bool = False,
+    copies: int = 1,
+) -> dict[str, Any]:
+    """Clean up the open model before saving: delete or restore parts (ids from model_import_open), remove
+    small parts (under 1% of the model's size), pick a polygon level (0 = full detail, higher = fewer
+    polygons; aim for the green budget), turn it (degrees), or undo. copies: how many times it will be
+    placed in the project, which tightens the budget.
+    """
+    state = model_import.state(copies)
+    if undo:
+        state = model_import.undo(copies)
+    if delete_parts:
+        state = model_import.delete_parts(delete_parts, copies)
+    if restore_parts:
+        state = model_import.restore_parts(restore_parts, copies)
+    if remove_small_parts:
+        state = model_import.remove_small_parts(placements=copies)
+    if turn is not None:
+        state = model_import.set_turn(turn, copies)
+    if level is not None:
+        state = model_import.set_level(level, copies)
+    return state
+
+
+@mcp.tool(annotations=MODIFY)
+def model_import_save(name: str | None = None, folder: str = "", target: Literal["shared", "embedded"] = "shared",
+                      place: bool = True) -> dict[str, Any]:
+    """Save the cleaned-up model as an Archicad library object (.gsm), and place it in the model.
+
+    folder: a library sub-folder such as "Furniture > Tables" (made when missing). target "shared" saves to
+    the Tevavid Library in Documents, loaded into every project; "embedded" saves into this project only.
+    If Archicad's library converter is not found, the model is placed as Morph elements instead.
+    """
+    return model_import.save(name, folder, target, place=place)
 
 
 # --- full API access ---------------------------------------------------------
