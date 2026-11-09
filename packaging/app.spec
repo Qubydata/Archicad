@@ -19,6 +19,8 @@ ENTRY = str(ROOT / "packaging" / "entry.py")
 ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
 datas = collect_data_files("archicad_mcp")
+# Model Import reads 3D files with trimesh (and Collada through pycollada), which keep resources as data files.
+datas += collect_data_files("trimesh") + collect_data_files("collada") + collect_data_files("ezdxf")
 hidden = collect_submodules("archicad_mcp") + collect_submodules("uvicorn")
 
 

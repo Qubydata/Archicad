@@ -59,3 +59,10 @@ PERFORMANCE OF THIS SOFTWARE.
   <https://www.openstreetmap.org/copyright>.
 - ezdxf (MIT license), to read DXF survey drawings.
 - Pillow (HPND license, MIT-CMU), to read the elevation tiles and draw the icons.
+
+## Model Import libraries
+
+- trimesh (MIT license), to read glTF/GLB, OBJ, STL, PLY, OFF and Collada models.
+- pycollada (BSD license), for Collada (DAE) through trimesh.
+- assimp-py (MIT license), with the Open Asset Import Library (BSD license), to read FBX, 3DS and 3MF.
+- fast-simplification (MIT license), to reduce the polygon count.
