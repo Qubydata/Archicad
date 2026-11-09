@@ -100,11 +100,13 @@ jobs:
   # https://tevavid.com/downloads/ (the version folder, then latest.json, which installed copies
   # check for updates).
   release:
-    # Also when a build was cancelled (GitHub sometimes has no macOS machine), never when one failed.
+    # Only after the tests passed, and also when a build was cancelled (GitHub sometimes has no
+    # macOS machine), never when one failed or was skipped.
     if: >-
-      always() && needs.build.result != 'failure' &&
+      always() && needs.test.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'cancelled') &&
       (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release))
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
