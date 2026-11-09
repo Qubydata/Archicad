@@ -40,6 +40,8 @@ CREATE_COMMANDS = {
 class FakeArchicad:
     def __init__(self, tapir: bool = True, view_image: bool = True) -> None:
         self.tapir = tapir
+        self.namespaces = {"TapirCommand"}  # the add-on command namespaces this Archicad has
+        self.filters = True  # whether element lists take filters (older Archicad versions do not)
         self.view_image = view_image
         self.elements: dict[str, dict[str, Any]] = {}
         self.selection: list[str] = []
@@ -106,15 +108,21 @@ class FakeArchicad:
         if command == "API.GetProductInfo":
             return ok({"version": 29, "buildNumber": 3000, "languageCode": "INT"})
         if command == "API.IsAddOnCommandAvailable":
-            return ok({"available": self.tapir})
+            namespace = parameters["addOnCommandId"]["commandNamespace"]
+            return ok({"available": self.tapir and namespace in self.namespaces})
         if command == "API.GetAllElements":
             return ok({"elements": [{"elementId": {"guid": g}} for g in self.elements]})
+        if "filters" in parameters and not self.filters:
+            return {"succeeded": False, "error": {"code": 4002, "message": "Invalid command parameters (The JSON is "
+                    "invalid according to the JSON schema. Validation failed on schema rule 'additionalProperties' "
+                    "while trying to validate field on path '#/filters'.)"}}
         if command == "API.GetElementsByType":
             wanted = parameters["elementType"]
             return ok({"elements": [{"elementId": {"guid": g}} for g, e in self.elements.items() if e["type"] == wanted]})
         if command == "API.GetSelectedElements":
             return ok({"elements": [{"elementId": {"guid": g}} for g in self.selection]})
-        if command == "API.ExecuteAddOnCommand" and self.tapir:
+        if command == "API.ExecuteAddOnCommand" and self.tapir \
+                and parameters["addOnCommandId"]["commandNamespace"] in self.namespaces:
             name = parameters["addOnCommandId"]["commandName"]
             return ok({"addOnCommandResponse": self.handle_tapir(name, parameters["addOnCommandParameters"])})
         return {"succeeded": False, "error": {"code": 4001, "message": f"Unknown command {command}"}}

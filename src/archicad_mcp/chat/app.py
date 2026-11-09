@@ -15,6 +15,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import secrets
 import threading
 import time
@@ -153,6 +154,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-open", action="store_true", help="only start the service")
     parser.add_argument("--open", action="store_true", help="with --background: also open the panel now")
     parser.add_argument("--exit-with-archicad", action="store_true", help="stop a minute after the last Archicad quits")
+    parser.add_argument("--panel-token", help="the token the panel pages use (the Tevavid add-on passes one)")
     args, _unknown = parser.parse_known_args(argv)  # Tapir passes extra flags such as --token
 
     config.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -170,7 +172,8 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Tevavid Tools is already running, opened in the {ask_running_service(session, args.port, args.browser)}.")
         return
 
-    token = secrets.token_urlsafe(24)
+    given = args.panel_token or ""
+    token = given if re.fullmatch(r"[A-Za-z0-9_-]{16,128}", given) else secrets.token_urlsafe(24)
     app = create_app(args.ui_port, token)
     SESSION_FILE.write_text(json.dumps({"port": args.ui_port, "token": token, "pid": os.getpid()}), encoding="utf8")
     try:
@@ -190,7 +193,7 @@ def main(argv: list[str] | None = None) -> None:
     threading.Thread(target=open_when_ready, daemon=True).start()
     watcher = ArchicadWatcher(
         server, args.ui_port, token, app.state.settings,
-        auto_open=args.background, exit_when_gone=args.exit_with_archicad and not args.background,
+        auto_open=args.background, exit_when_gone=args.exit_with_archicad,
     )
     if args.background or args.exit_with_archicad:
         threading.Thread(target=watcher.run, daemon=True).start()

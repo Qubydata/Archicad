@@ -149,3 +149,11 @@ def test_panel_endpoints(model, monkeypatch, tmp_path):
         if event["type"] == "error":
             no_rooms_error = event["message"]
     assert "No rooms" in no_rooms_error
+
+
+def test_older_archicad_without_element_filters(model):
+    model.filters = False  # rejects "filters" like the user's Archicad did (code 4002)
+    summary = result("sun_analysis", {"date": "2026-03-20", "grid": 0.5})
+    assert summary["tiles"] == 96 and any("hidden" in note for note in summary["notes"])
+    listed = result("get_elements", {"element_type": "Wall", "filters": ["IsVisibleIn3D"]})
+    assert listed["count"] == 4 and "unfiltered" in listed["note"]

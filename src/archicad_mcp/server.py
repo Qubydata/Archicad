@@ -308,16 +308,10 @@ def get_elements(
     filters: optional Archicad filters, e.g. ["OnActualFloor"], ["IsVisibleByLayer"], ["IsEditable"].
     with_details: also return type, element ID and story of each element (needs Tapir).
     """
-    parameters: dict[str, Any] = {}
-    if filters:
-        parameters["filters"] = filters
-    if element_type:
-        parameters["elementType"] = element_type
-        result = archicad.command("API.GetElementsByType", parameters)
-    else:
-        result = archicad.command("API.GetAllElements", parameters)
-    guids = _guids(result.get("elements", []))
+    guids, applied = archicad.elements(element_type, filters)
     answer: dict[str, Any] = {"count": len(guids), "guids": guids[:limit]}
+    if not applied:
+        answer["note"] = "This Archicad version does not support filters, so the list is unfiltered."
     if len(guids) > limit:
         answer["truncated"] = True
     if with_details and guids:

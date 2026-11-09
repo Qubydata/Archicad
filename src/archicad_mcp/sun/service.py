@@ -126,9 +126,14 @@ class SunAnalysis:
         kinds = OBSTRUCTING + (("Object", "Lamp") if include_objects else ())
         tiles = set(self.tiles)
         elements: list[tuple[str, str]] = []
+        filtered = True
         for kind in kinds:
-            found = self.connection.command("API.GetElementsByType", {"elementType": kind, "filters": ["IsVisibleIn3D"]})
-            elements += [(e["elementId"]["guid"], kind) for e in found.get("elements", []) if e["elementId"]["guid"] not in tiles]
+            guids, applied = self.connection.elements(kind, ["IsVisibleIn3D"])
+            filtered &= applied
+            elements += [(g, kind) for g in guids if g not in tiles]
+        if not filtered:
+            self.notes.append("This Archicad version cannot tell which elements are hidden in 3D, so elements on "
+                              "hidden layers also block the light. Delete or move them out of the way if that matters.")
         geometries = []
         done = 0
         for chunk in _chunks(elements, 100):
