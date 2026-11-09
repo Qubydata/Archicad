@@ -41,7 +41,7 @@ jobs:
           - os: windows-latest
             artifact: TevavidToolsSetup-Windows
             addons: TevavidAddOn-*-Win
-          - os: macos-14
+          - os: macos-latest
             artifact: TevavidToolsSetup-macOS
             addons: TevavidAddOn-*-Mac
     runs-on: ${{ matrix.os }}
