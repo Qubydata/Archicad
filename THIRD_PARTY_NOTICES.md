@@ -2,9 +2,11 @@
 
 ## Tapir command reference
 
-`src/archicad_mcp/data/tapir_catalog.json` is generated from the command reference of the
-Tapir Archicad Automation project, <https://github.com/ENZYME-APD/tapir-archicad-automation>.
-The setup downloads the Tapir add-on itself from that project's releases.
+The Tevavid Archicad add-on (`addon/`) is built on the Archicad add-on of the Tapir Archicad
+Automation project, <https://github.com/ENZYME-APD/tapir-archicad-automation>, and
+`src/archicad_mcp/data/tapir_catalog.json` is generated from its command reference. For Archicad
+versions without a Tevavid add-on build, the setup downloads the Tapir add-on from that project's
+releases. Its license:
 
 MIT License
 
@@ -47,3 +49,13 @@ AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR 
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
 NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
+
+## Site from Map data and libraries
+
+- Elevation: Terrain Tiles on AWS by Mapzen/Tilezen, combining open data including SRTM (NASA),
+  3DEP (USGS), ETOPO1 (NOAA) and other national sources. See
+  <https://github.com/tilezen/joerd/blob/master/docs/attribution.md>.
+- Buildings: (c) OpenStreetMap contributors, available under the Open Database License (ODbL),
+  <https://www.openstreetmap.org/copyright>.
+- ezdxf (MIT license), to read DXF survey drawings.
+- Pillow (HPND license, MIT-CMU), to read the elevation tiles and draw the icons.

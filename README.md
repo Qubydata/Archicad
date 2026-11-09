@@ -18,12 +18,14 @@ Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the
 2. Run it and click **Next**, pick your Archicad versions and the tools you want, then **Install**.
    Depending on the tools, the setup installs:
    - the Tevavid Tools app,
-   - the free [Tapir add-on](https://github.com/ENZYME-APD/tapir-archicad-automation), which the
-     tools use to work with Archicad (Windows asks for administrator permission for this step),
-   - the **Tevavid** panel inside Archicad,
+   - the **Tevavid add-on** in each Archicad, which adds the **Tevavid** menu to Archicad's menu bar
+     and the model commands the tools use (Windows asks once for administrator permission, since
+     Archicad's Add-Ons folder is in Program Files),
    - with the AI Assistant, the `archicad` server in Claude Desktop, if Claude Desktop is installed,
    - optionally the background app, which opens the panel whenever Archicad starts.
-3. Start Archicad and open a project. The **Tevavid** panel appears next to the model.
+3. Start Archicad and open a project. Use the **Tevavid** menu: AI Assistant, Sun Analysis, Site
+   from Map, Model Import, Settings. The panel opens next to the model (also by itself at start,
+   unless that option is off).
 4. The AI Assistant is free and works with your own Claude, in either of two ways:
    - **With a Claude plan (Pro, Max, Team):** use it from Claude Desktop, at no extra cost. The
      setup connects it (restart Claude Desktop once); the panel's Settings tab can also connect it.
@@ -34,7 +36,7 @@ Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the
 
 Every change is a normal Archicad change, so Undo works. Uninstall from Windows Settings >
 Apps, or run `TevavidTools uninstall` on macOS. Settings and conversations are kept in
-`~/.tevavid-tools`. The Tapir add-on stays installed, since other tools use it.
+`~/.tevavid-tools`. Uninstalling also removes the Tevavid add-on from Archicad.
 
 For IT deployment: `TevavidToolsSetup.exe --silent [--tools assistant,sun] [--no-addon] [--no-desktop-app]`.
 
@@ -56,8 +58,8 @@ For IT: `TevavidToolsSetup.exe --silent --update` updates with the installed cho
  Archicad                                   Tevavid Tools
  +--------------------------+               +-----------------------------------------+
  | JSON API (port 19723)    | <-- HTTP ---> | MCP server: 31 tools                     |
- | Tapir add-on (~430 cmds) |               |   curated: create_walls, get_elements... |
- | MCP palette (Tapir UI)   | <-- local --> |   generic: run_tapir_command + catalog   |
+ | Tevavid add-on (~430     |               |   curated: create_walls, get_elements... |
+ |  cmds, Tevavid menu)     | <-- local --> |   generic: run_tapir_command + catalog   |
  +--------------------------+     web       | Chat service: Claude + the same tools    |
                                             +-----------------------------------------+
                                                ^ stdio (MCP)            ^ Anthropic API
@@ -65,8 +67,10 @@ For IT: `TevavidToolsSetup.exe --silent --update` updates with the installed cho
 ```
 
 - Archicad 25 and later runs a JSON API on `localhost:19723` while it is open. Read access is
-  built in. The Tapir add-on adds about 430 more commands, including element creation, editing,
-  layers, attributes, dimensions, layouts, IFC and MCP, under `API.ExecuteAddOnCommand`.
+  built in. The Tevavid add-on (`addon/`, built on the MIT-licensed Tapir add-on) adds about 430 more
+  commands, including element creation, editing, layers, attributes, dimensions, layouts and IFC,
+  under `API.ExecuteAddOnCommand` (namespace `TevavidCommand`; a plain Tapir add-on also works), and
+  the Tevavid menu.
 - `archicad_mcp.server` exposes that as MCP tools. The everyday tasks have small typed tools
   (`create_walls`, `create_slabs`, `create_windows`, `move_elements`, `get_element_properties`,
   `get_view_image`, ...). Everything else goes through `search_tapir_commands`,
@@ -74,7 +78,7 @@ For IT: `TevavidToolsSetup.exe --silent --update` updates with the installed cho
   schemas, so the model can use any Tapir command with the right parameters. This plays the role
   of `execute_blender_code` in Blender MCP.
 - `archicad_mcp.chat` is the panel: a local web app (127.0.0.1 only, with a per-session token)
-  shown inside Archicad through Tapir's `ShowScriptUI` palette. It runs Claude with the same MCP
+  shown inside Archicad in the add-on's browser palette (the Tevavid menu starts the service). It runs Claude with the same MCP
   tools in-process and keeps conversations under **Recent**.
 - `archicad_mcp.installer` is the setup wizard (pywebview) and its install engine. Each change it
   makes is recorded in a manifest, so cancel, failure and uninstall undo exactly what was done.
