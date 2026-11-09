@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 (2026-11-09)
+
+- Tapir finds uv after installing: no more 'Tapir could not find uv'.
+
 ## 0.1.2 (2026-11-09)
 
 - Setup on Windows installs again (0.1.1 stopped with 'Main window failed to start').
