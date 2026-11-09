@@ -33,6 +33,7 @@ CREATE_COMMANDS = {
     "CreateZones": ("zonesData", "Zone"),
     "CreateObjects": ("objectsData", "Object"),
     "CreateMorphs": ("morphsData", "Morph"),
+    "CreateMeshes": ("meshesData", "Mesh"),
 }
 
 
