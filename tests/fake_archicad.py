@@ -52,6 +52,15 @@ class FakeArchicad:
         self.location = {"longitude": -0.12, "latitude": 51.5, "altitude": 20.0, "north": 1.5707963267948966}
         self.surfaces: dict[str, dict[str, Any]] = {}
         self.layers: list[dict[str, Any]] = [{"attributeId": {"guid": "L0"}, "index": 1, "name": "Archicad Layer"}]
+        # Library and application state, for Model Import.
+        self.archicad_location = "/Applications/GRAPHISOFT/Archicad 29/Archicad 29.app"
+        self.libraries: list[dict[str, Any]] = [{"name": "Archicad Library 29", "path": "/Library/Archicad Library 29",
+                                                  "type": "LocalLibrary", "available": True, "readOnly": True}]
+        self.reloads = 0
+        self.embedded_library_path = "/tmp/Embedded Library"
+        self.embedded_folders: list[str] = []
+        self.embedded_files: list[dict[str, Any]] = []
+        self.clicked_point: dict[str, float] | None = {"x": 3.0, "y": 4.0, "z": 0.0}
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.port = self._server.server_address[1]
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -243,6 +252,42 @@ class FakeArchicad:
             return {"success": True}
         if name == "GetCurrentViewImage" and self.view_image:
             return {"image": base64.b64encode(PNG_BYTES).decode(), "width": 1, "height": 1}
+        if name == "GetArchicadLocation":
+            return {"archicadLocation": self.archicad_location}
+        if name == "GetSpecialFolders":
+            paths = {"EmbeddedProjectLibrary": self.embedded_library_path}
+            return {"folderPaths": [{"path": paths[t]} if t in paths else {"error": {"code": 1, "message": "Unknown"}}
+                                    for t in p["folderTypes"]]}
+        if name == "GetLibraries":
+            return {"libraries": self.libraries}
+        if name == "AddLibraries":
+            known = {lib["path"] for lib in self.libraries}
+            for location in p["libraries"]:
+                path = location["path"]
+                if path not in known:
+                    self.libraries.append({"name": path.rstrip("/").split("/")[-1], "path": path,
+                                           "type": "LocalLibrary", "available": True, "readOnly": False})
+            return {"success": True}
+        if name == "ReloadLibraries":
+            self.reloads += 1
+            return {"success": True}
+        if name == "CreateFolderInEmbeddedLibrary":
+            self.embedded_folders.append(p["folderPath"])
+            return {"success": True}
+        if name == "AddFilesToEmbeddedLibrary":
+            self.embedded_files += p["files"]
+            return {"executionResults": [{"success": True} for _ in p["files"]]}
+        if name == "CreateSurfaces":
+            ids = []
+            for surface in p["surfaceDataArray"]:
+                guid = str(uuid.uuid4()).upper()
+                self.surfaces[guid] = {"attributeId": {"guid": guid}, **surface}
+                ids.append({"attributeId": {"guid": guid}})
+            return {"attributeIds": ids}
+        if name == "GetPointFromUser":
+            if self.clicked_point is None:
+                return {"error": {"code": -1, "message": "The input was cancelled."}}
+            return {"position": self.clicked_point}
         if name == "SaveCurrentWindowAsImage":
             with open(p["imageFilePath"], "wb") as file:
                 file.write(PNG_BYTES)
