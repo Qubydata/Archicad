@@ -1,0 +1,315 @@
+#include "ResourceIds.hpp"
+#include "AddOnVersion.hpp"
+
+/* The texts of the Add-On's user interface in international English, the complete language.
+   A translation is a copy of this file as R<language code>/AddOn.grc: see ../LOCALIZATION.md. */
+
+'STR#' ID_ADDON_INFO "Add-on Name and Description" {
+/* [  1] */		"Tapir Additional JSON Commands"
+/* [  2] */		"Tapir Additional JSON Commands"
+}
+
+'STR#' ID_ADDON_MENU "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "About Tapir...^E3^ES^EE^EI^ED^EL^EW^ET^EM^32503"
+}
+
+'STR#' ID_ADDON_MENU_FOR_PALETTE "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Tapir Palette^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_FOR_UPDATE "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Check for Updates...^E3^ES^EE^EI^ED^EL^EW^ET^EM^32510"
+}
+
+'STR#' ID_ADDON_MENU_FOR_SHORTCUTS "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Manage Script Shortcuts...^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_1 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 1^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_2 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 2^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_3 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 3^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_4 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 4^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_5 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 5^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_ADDON_MENU_RUNSCRIPT_6 "Add-On Menu" {
+/* [   ] */        "Tapir"
+/* [  1] */        "Run Script Shortcut 6^E3^ES^EE^EI^ED^EL^EW^ET^EM"
+}
+
+'STR#' ID_PALETTE_STRINGS "Tapir Palette Strings" {
+/* [  1] */ "Select Python Scripts"
+/* [  2] */ "Add"
+/* [  3] */ "Changes the model"
+/* [  4] */ "Writes files"
+/* [  5] */ "Read only"
+/* [  6] */ "Run Script"
+/* [  7] */ "Needs Tapir %T or newer"
+/* [  8] */ "Needs Tapir %T or newer - you have Tapir %s"
+/* [  9] */ "Tested on Archicad %T"
+/* [ 10] */ "Tested on Archicad %T - this is Archicad %d"
+/* [ 11] */ "Tapir Script"
+/* [ 12] */ "%T needs Tapir %T or newer. You have Tapir %s."
+/* [ 13] */ "Check for Updates..."
+/* [ 14] */ "Cancel"
+/* [ 15] */ "%T was tested on Archicad %T. This is Archicad %d."
+/* [ 16] */ "It may not work as expected here."
+/* [ 17] */ "Run anyway"
+/* [ 18] */ "Reload scripts..."
+/* [ 19] */ "(unassigned)"
+/* [ 20] */ "Run Script Shortcut %d"
+/* [ 21] */ "[Shortcut %d]"
+/* [ 22] */ "Tapir Script Execution"
+/* [ 23] */ "Error"
+/* [ 24] */ "OK"
+/* [ 25] */ "%T: ignored min-tapir-version \"%T\", it is not a version like 1.8.1."
+/* [ 26] */ "No script assigned to shortcut slot %d."
+/* [ 27] */ "A script is already running - wait for it to finish before using a shortcut slot."
+/* [ 28] */ "Script assigned to shortcut slot %d could not be found (%d scripts currently listed)."
+/* [ 29] */ "Could not find the processes the script started, they may keep running."
+/* [ 30] */ "ExitCode: %d"
+/* [ 31] */ "Executing %T with uv"
+/* [ 32] */ "Failed to start uv process. Ensure it is installed and executable."
+/* [ 33] */ "Failed to execute %T"
+/* [ 34] */ "Unexpected issue while executing %T"
+}
+
+'STR#' ID_PALETTE_SEARCH_STRINGS "Tapir Palette Search Strings" {
+/* [  1] */ "Add to favourites"
+/* [  2] */ "Remove from favourites"
+/* [  3] */ "Search scripts"
+/* [  4] */ "No matching scripts"
+/* [  5] */ "Filtered by \"%T\" - click to change the search"
+}
+
+'STR#' ID_AUTOUPDATE_STRINGS "Tapir Update Strings" {
+/* [  1] */ "Tapir Update"
+/* [  2] */ "You are using Tapir version %s. A new version %T is available."
+/* [  3] */ "Would you like to update to the latest version for the best experience?"
+/* [  4] */ "Update and Restart Archicad"
+/* [  5] */ "Continue with this version"
+/* [  6] */ "Tapir Update"
+/* [  7] */ "You are using the latest Tapir version %s."
+/* [  8] */ "OK"
+/* [  9] */ "Check for Updates"
+/* [ 10] */ "Update to %T"
+/* [ 11] */ "Update Tapir to %T..."
+/* [ 12] */ "%s"
+/* [ 13] */ "Tapir Update"
+/* [ 14] */ "OK"
+/* [ 15] */ "Tapir is still checking GitHub for the latest release."
+/* [ 16] */ "Please try again in a moment."
+/* [ 17] */ "Tapir %T is available, but not yet for Archicad %d."
+/* [ 18] */ "You are using Tapir %s."
+/* [ 19] */ "The Tapir Installer is missing from the latest release."
+/* [ 20] */ "Download the update from https://github.com/ENZYME-APD/tapir-archicad-automation/releases/latest"
+/* [ 21] */ "Failed to download the Tapir Installer."
+/* [ 22] */ "Downloading the Tapir Installer..."
+/* [ 23] */ "You can also download the new version from https://github.com/ENZYME-APD/tapir-archicad-automation/releases/latest and replace the Add-On manually."
+/* [ 24] */ "The update was cancelled."
+/* [ 25] */ "The Tapir Add-On is in a folder that only an administrator can change."
+/* [ 26] */ "Failed to start the Tapir Installer."
+/* [ 27] */ "Invalid download URL: %T"
+/* [ 28] */ "Redirect without a location from %T"
+/* [ 29] */ "HTTP status %d from %T"
+/* [ 30] */ "Cannot write %T"
+/* [ 31] */ "Failed to write the downloaded file."
+/* [ 32] */ "The download is incomplete."
+/* [ 33] */ "The downloaded file is empty."
+/* [ 34] */ "Too many redirects."
+/* [ 35] */ "Unexpected error while downloading."
+/* [ 36] */ "Windows error code %T"
+/* [ 37] */ "Failed to extract %T"
+/* [ 38] */ "This Tapir Installer does not run on Macs with an Intel processor."
+/* [ 39] */ "Failed to open %T"
+/* [ 40] */ "Cannot create %T"
+}
+
+'STR#' ID_UV_STRINGS "Tapir uv Strings" {
+/* [  1] */ "Tapir found a valid 'uv' executable at: %T (Version: %T)"
+/* [  2] */ "Tapir found an outdated 'uv' at: %T (Version: %T). Ignoring."
+/* [  3] */ "Tapir could not find a 'uv' installation with version 0.7.0 or newer."
+/* [  4] */ "Configured 'uv' Executable Invalid"
+/* [  5] */ "'uv' executable path configured in Tapir settings is invalid or points to an outdated version:\n\n%T\n\nTapir will attempt to find a valid 'uv' installation automatically."
+/* [  6] */ "OK"
+/* [  7] */ "Dependency Missing: 'uv'"
+/* [  8] */ "'uv' (version 0.7.0 or newer) is required to run Python scripts but it was not found on your system."
+/* [  9] */ "How would you like to proceed?"
+/* [ 10] */ "Install for me"
+/* [ 11] */ "Open Instructions"
+/* [ 12] */ "Cancel"
+/* [ 13] */ "Configured Python Interpreter Not Found"
+/* [ 14] */ "The Python interpreter path configured in Tapir settings does not exist:\n\n%T\n\n'uv' will select a Python interpreter automatically."
+/* [ 15] */ "Tapir runs Python scripts with the configured interpreter: %T"
+/* [ 16] */ "Attempting to run the official uv installer script of uv %s..."
+/* [ 17] */ "uv installer script finished successfully."
+/* [ 18] */ "Installation Successful"
+/* [ 19] */ "'uv' has been installed and is ready to use."
+/* [ 20] */ "Installation May Require a Restart"
+/* [ 21] */ "'uv' was installed, but it's not yet available in the system's PATH.\n\nPlease restart Archicad for the changes to take effect."
+/* [ 22] */ "uv installer script failed with exit code: %d"
+/* [ 23] */ "Installation Failed"
+/* [ 24] */ "The automatic installation failed. Please check the Report window for details.\n\nYou can try installing it manually from the official website."
+/* [ 25] */ "Go to uv website"
+/* [ 26] */ "'uv' aborted (exit code 134). If the output above says \"macOS ... or later required\", this 'uv' build needs a newer macOS than the one running. Install a uv version that runs on this macOS, e.g.\ncurl -LsSf https://astral.sh/uv/%s/install.sh | sh\nand point Tapir to it with \"uvLocation\" in Documents/Tapir/config.json, e.g.\n{ \"uvLocation\": \"/Users/<you>/.local/bin/uv\" }"
+}
+
+'STR#' ID_REPORT_STRINGS "Tapir Report Window Strings" {
+/* [  1] */ "----- Tapir Script Execution Report -----"
+/* [  2] */ "ERROR:"
+/* [  3] */ "WARNING:"
+/* [  4] */ "INFO:"
+/* [  5] */ "Tapir: Failed to list %T/%T on GitHub: %T"
+/* [  6] */ "Tapir: Failed to list %T/%T on GitHub."
+/* [  7] */ "Tapir: uvProject must not leave the repository or folder, ignoring it: %T"
+/* [  8] */ "Tapir is downloading content from GitHub repository: %T/%T"
+/* [  9] */ "Skipping download of %T due to exclude pattern"
+/* [ 10] */ "Tapir: Failed to download %T: %T"
+/* [ 11] */ "Tapir: Failed to download %T"
+/* [ 12] */ "Downloaded %T"
+/* [ 13] */ "Skipping use of %T due to exclude pattern"
+/* [ 14] */ "Skipping use of %T due to include pattern"
+/* [ 15] */ "Added to the popup: %T"
+/* [ 16] */ "Tapir: Local script folder not found, skipping it: %T"
+/* [ 17] */ "Tapir is loading scripts from local folder: %T"
+/* [ 18] */ "Added to the popup: %T (%T)"
+/* [ 19] */ "Tapir::Config: Failed to load config file: %T"
+/* [ 20] */ "Tapir::Config: Failed to save config file: %T"
+/* [ 21] */ "Tapir: the %s command could not be registered (error %d)."
+}
+
+'GDLG' ID_ABOUT_DIALOG Modal     40   40  200  237  "Tapir" {
+/* [  1] */ Button                     10  204  180   23    LargePlain "OK"
+/* [  2] */ Icon                       36   10  128  128    ID_TAPIR_LOGO
+/* [  3] */ CenterText                 10  148  180   23    LargeBold vCenter "Tapir Archicad Automation"
+/* [  4] */ CenterText                 10  171  180   23    LargePlain vCenter "Version: %T, Port: %T"
+}
+
+'DLGH' ID_ABOUT_DIALOG Tapir_About_Dialog {
+1    ""        OkButton
+2    ""        TapirLogo
+3    ""        TapirText
+4    ""        VersionText
+}
+
+'GDLG' ID_PALETTE Palette | leftCaption | close   0   0  592  28  "Tapir Palette"  {
+/* [  1] */ IconButton                 0   0  28  28    ID_TAPIR_LOGO_MINI noFrame
+/* [  2] */ PopupControl              56   3 320  22    80  3
+/* [  3] */ IconButton               376   0  28  28    ID_RUN_BUTTON_ICON noFrame
+/* [  4] */ IconButton               376   0  28  28    ID_OPENSCRIPT_BUTTON_ICON noFrame
+/* [  5] */ IconButton               432   0  28  28    ID_ADDSCRIPT_BUTTON_ICON noFrame
+/* [  6] */ IconButton               460   0  28  28    ID_DELSCRIPT_BUTTON_ICON noFrame
+/* [  7] */ IconButton               488   0  28  28    ID_SHORTCUTS_BUTTON_ICON noFrame
+/* [  8] */ LeftText                 552   6  40  16    SmallPlain  vCenter  ""
+/* [  9] */ IconButton               520   0  28  28    ID_CHECKFORUPDATES_BUTTON_ICON noFrame
+/* [ 10] */ TextEdit                  56   3 120  22    SmallPlain  noDelay  255
+/* [ 11] */ IconButton               404   0  28  28    ID_STAR_BUTTON_ICON noFrame
+/* [ 12] */ IconButton                28   0  28  28    ID_SEARCH_BUTTON_ICON noFrame
+}
+
+'DLGH' ID_PALETTE Tapir_Palette {
+1    "Open the Tapir website"  TapirButton
+2    ""        ScriptSelection
+3    "Run Script"          RunButton
+4    "Open in Browser"     OpenButton
+5    "Add Script"          AddButton
+6    "Remove Script"       DelButton
+7    "Manage Shortcuts"    ManageShortcutsButton
+8    "Installed Tapir version"         InstalledVersionText
+9    "Check for Updates"               CheckForUpdatesButton
+10   ""        SearchEdit
+11   ""        FavouriteButton
+12   "Search scripts"      SearchButton
+}
+
+'GDLG' ID_SCRIPTUI_PALETTE Palette | leftCaption | close | grow   0   0  600  450  "Tapir Script UI"  {
+/* [  1] */ Browser                     0   0  600  450
+}
+
+'DLGH' ID_SCRIPTUI_PALETTE Tapir_ScriptUI_Palette {
+1    ""        BrowserItem
+}
+
+'GDLG' ID_ATTRIBUTE_PICKER_DIALOG Modal | noGrow    40   40  380  100  "Pick Attribute" {
+/* [  1] */ Button       180   66   90   24    LargePlain  "OK"
+/* [  2] */ Button       280   66   90   24    LargePlain  "Cancel"
+/* [  3] */ LeftText      10   14  150   28    LargePlain  vCenter  "Attribute:"
+/* [  4] */ PushCheck    170   14  200   28    LargePlain  ""
+}
+
+'DLGH' ID_ATTRIBUTE_PICKER_DIALOG Tapir_Attribute_Picker_Dialog {
+1    ""        OkButton
+2    ""        CancelButton
+3    ""        PickerLabel
+4    ""        PickerPushCheck
+}
+
+'GDLG' ID_SHORTCUTS_DIALOG Modal | noGrow    80   80  500  270  "Script Shortcuts" {
+/* [  1] */ LeftText     110    6  210   16    SmallPlain  vCenter  "Script"
+/* [  2] */ LeftText     330    6  150   16    SmallPlain  vCenter  "Toolbar label (optional)"
+/* [  3] */ LeftText      10   32   90   18    SmallPlain  vCenter  "Shortcut 1:"
+/* [  4] */ PopupControl 110   30  210   22    80  3
+/* [  5] */ TextEdit     330   30  150   22    SmallPlain  60
+/* [  6] */ LeftText      10   62   90   18    SmallPlain  vCenter  "Shortcut 2:"
+/* [  7] */ PopupControl 110   60  210   22    80  3
+/* [  8] */ TextEdit     330   60  150   22    SmallPlain  60
+/* [  9] */ LeftText      10   92   90   18    SmallPlain  vCenter  "Shortcut 3:"
+/* [ 10] */ PopupControl 110   90  210   22    80  3
+/* [ 11] */ TextEdit     330   90  150   22    SmallPlain  60
+/* [ 12] */ LeftText      10  122   90   18    SmallPlain  vCenter  "Shortcut 4:"
+/* [ 13] */ PopupControl 110  120  210   22    80  3
+/* [ 14] */ TextEdit     330  120  150   22    SmallPlain  60
+/* [ 15] */ LeftText      10  152   90   18    SmallPlain  vCenter  "Shortcut 5:"
+/* [ 16] */ PopupControl 110  150  210   22    80  3
+/* [ 17] */ TextEdit     330  150  150   22    SmallPlain  60
+/* [ 18] */ LeftText      10  182   90   18    SmallPlain  vCenter  "Shortcut 6:"
+/* [ 19] */ PopupControl 110  180  210   22    80  3
+/* [ 20] */ TextEdit     330  180  150   22    SmallPlain  60
+/* [ 21] */ Button       410  224   70   24    LargePlain  "Close"
+}
+
+'DLGH' ID_SHORTCUTS_DIALOG Tapir_Shortcuts_Dialog {
+1    ""        ScriptColumnHeader
+2    ""        LabelColumnHeader
+3    ""        ShortcutLabel1
+4    ""        ShortcutPopUp1
+5    ""        ShortcutLabelEdit1
+6    ""        ShortcutLabel2
+7    ""        ShortcutPopUp2
+8    ""        ShortcutLabelEdit2
+9    ""        ShortcutLabel3
+10   ""        ShortcutPopUp3
+11   ""        ShortcutLabelEdit3
+12   ""        ShortcutLabel4
+13   ""        ShortcutPopUp4
+14   ""        ShortcutLabelEdit4
+15   ""        ShortcutLabel5
+16   ""        ShortcutPopUp5
+17   ""        ShortcutLabelEdit5
+18   ""        ShortcutLabel6
+19   ""        ShortcutPopUp6
+20   ""        ShortcutLabelEdit6
+21   ""        CloseButton
+}
