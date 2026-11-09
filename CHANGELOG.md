@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 (2026-11-09)
+
+- The Tevavid menu in Archicad's menu bar: AI Assistant, Sun Analysis, Site from Map, Model Import, Settings. Our own Archicad add-on replaces Tapir, so no uv or Python scripts are needed.
+- Site from Map: the real terrain and neighbouring buildings around the project location, or a surveyor's points and contours, as an Archicad Mesh.
+- Sun Analysis works on Archicad versions that reject element filters.
+
 ## 0.1.4 (2026-11-09)
 
 - Sun Analysis works on Archicad versions that reject element filters (error 4002 on '#/filters').

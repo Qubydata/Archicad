@@ -1,6 +1,6 @@
 [project]
 name = "tevavid-tools"
-version = "0.1.4"
+version = "0.2.0"
 description = "Tevavid Tools for Archicad: an AI assistant (Claude MCP), sun and daylight analysis, and more"
 readme = "README.md"
 keywords = ["archicad", "mcp", "bim", "claude", "tapir"]
