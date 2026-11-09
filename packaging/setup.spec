@@ -14,13 +14,16 @@ VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "archicad_mcp" /
 PAYLOAD = ROOT / "build" / "payload" / "app.zip"
 ICON = str(ROOT / "packaging" / "icons" / ("tevavid-tools.icns" if sys.platform == "darwin" else "tevavid-tools.ico"))
 
+# The Tevavid Archicad add-ons (build/addons, from the Build add-on workflow), when there are any.
+ADDONS = [(str(path), "addons") for path in sorted((ROOT / "build" / "addons").glob("TevavidAddOn_AC*"))]
+
 if not PAYLOAD.exists():
     raise SystemExit(f"{PAYLOAD} is missing: run python packaging/build.py")
 
 analysis = Analysis(
     [str(ROOT / "packaging" / "entry.py")],
     pathex=[str(ROOT / "src")],
-    datas=collect_data_files("archicad_mcp") + [(str(PAYLOAD), "payload")],
+    datas=collect_data_files("archicad_mcp") + [(str(PAYLOAD), "payload")] + ADDONS,
     hiddenimports=collect_submodules("archicad_mcp.installer"),
 )
 # Windows: a picture while the one-file setup unpacks itself (it takes a few seconds,

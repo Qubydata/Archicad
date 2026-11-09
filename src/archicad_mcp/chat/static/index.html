@@ -1036,13 +1036,13 @@ async function refreshStatus() {
   let notice = "";
   if (!hasKey) notice = '<div class="notice">To chat here, add an Anthropic API key. With a Claude plan, use Tevavid Tools from Claude Desktop instead. <button data-go="settings">Open Settings</button></div>';
   else if (!a.connected) notice = '<div class="notice bad">Archicad is not running. Start Archicad and open a project.</div>';
-  else if (!a.tapir) notice = '<div class="notice">The Tapir add-on is not loaded, so the assistant can read but not change the model. Run the Tevavid Tools installer again.</div>';
+  else if (!a.tapir) notice = '<div class="notice">The Tevavid add-on is not loaded in this Archicad, so the tools can read but not change the model. Close Archicad, run the Tevavid Tools setup again, then start Archicad.</div>';
   $("homeNotice").innerHTML = notice;
   $("homeNotice").querySelector("[data-go]")?.addEventListener("click", () => setTab("settings"));
 
   $("about").innerHTML = a.connected
     ? `Connected to Archicad ${escapeHtml(a.product.version)} (build ${escapeHtml(a.product.buildNumber)}) on port ${escapeHtml(a.port)}<br>` +
-      `Project: ${escapeHtml(a.project || "untitled")}<br>Tapir add-on: ${a.tapir ? escapeHtml(a.tapirVersion || "installed") : "not loaded"}`
+      `Project: ${escapeHtml(a.project || "untitled")}<br>Tevavid add-on: ${a.tapir ? escapeHtml(a.tapirVersion || "installed") : "not loaded"}`
     : `Archicad: not connected<br>${escapeHtml(a.message || "")}`;
 }
 

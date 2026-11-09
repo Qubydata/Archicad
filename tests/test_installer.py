@@ -460,3 +460,77 @@ def test_a_silent_update_turns_on_new_tools():
     assert Options.from_manifest(manifest, "linux").tools == ["sun", "site"]  # Site is new since that install
     manifest["offered"] = ["assistant", "sun", "site"]
     assert Options.from_manifest(manifest, "linux").tools == ["sun"]  # unticked on purpose: stays off
+
+
+class ElevatingSystem(FakeSystem):
+    """Runs the add-on job of an elevated setup in-process, as the elevated copy of setup would."""
+
+    def run_elevated(self, command, timeout=900):
+        self.commands.append(("elevated", command))
+        if "--addon-files" in command:
+            from archicad_mcp.installer import addon_files
+
+            return addon_files.run_job_file(command[-1])
+        return self.exit_code
+
+
+@pytest.fixture
+def addons(tmp_path):
+    folder = tmp_path / "addons"
+    folder.mkdir()
+    (folder / "TevavidAddOn_AC28_Win.apx").write_bytes(b"MZ tevavid 28")
+    return folder
+
+
+def test_the_tevavid_add_on_replaces_tapir(home, payload, addons):
+    make_archicad(home, 28)
+    system = ElevatingSystem(home)
+    calls = []
+    options = Options(system.detect_archicad(), install_addon=True, desktop_app=False)
+    state = Installer(system, options, payload, downloader=fake_downloader(on_call=calls.append), addons=addons).run()
+    assert state["status"] == "done", state
+    installed = home / "GRAPHISOFT" / "Archicad 28" / "Add-Ons" / "Tevavid" / "TevavidAddOn_AC28_Win.apx"
+    assert installed.read_bytes() == b"MZ tevavid 28"
+    assert calls == [] and tapir_runs(system) == []  # no Tapir, no uv
+    assert not (system.tapir_scripts_dir / "Tevavid Tools.py").exists()  # no palette script: the menu opens the panel
+    manifest = install.read_manifest(system)
+    assert {"type": "addon_file", "path": str(installed)} in manifest["actions"] and manifest["tapirInstalled"] == []
+    install.uninstall(system)
+    assert not installed.exists()
+
+
+def test_updating_from_tapir_removes_it(home, payload, addons):
+    make_archicad(home, 28)
+    system = ElevatingSystem(home)
+    first = Options(system.detect_archicad(), install_addon=True, desktop_app=False)
+    Installer(system, first, payload, downloader=fake_downloader()).run()  # an older Tevavid: Tapir and its script
+    tapir = home / "GRAPHISOFT" / "Archicad 28" / "Add-Ons" / "Tapir"
+    tapir.mkdir(parents=True)
+    (tapir / "TapirAddOn_AC28_Win.apx").write_bytes(b"MZ tapir")
+    script = system.tapir_scripts_dir / "Tevavid Tools.py"
+    assert script.exists() and install.read_manifest(system)["tapirInstalled"] == [28]
+
+    state = Installer(system, first, payload, downloader=fake_downloader(), addons=addons).run()
+    assert state["status"] == "done", state
+    assert not tapir.exists() and not script.exists()
+    assert (tapir.parent / "Tevavid" / "TevavidAddOn_AC28_Win.apx").exists()
+    assert install.read_manifest(system)["tapirInstalled"] == []
+
+
+def test_versions_without_a_tevavid_build_keep_tapir(home, payload, addons):
+    make_archicad(home, 28)
+    make_archicad(home, 29)
+    system = ElevatingSystem(home)
+    options = Options(system.detect_archicad(), install_addon=True, desktop_app=False)
+    state = Installer(system, options, payload, downloader=fake_downloader(), addons=addons).run()
+    assert state["status"] == "done"
+    assert [c[1:] for c in tapir_runs(system)] == [["--console", "--versions", "29"]]  # Tapir only for 29
+    assert (system.tapir_scripts_dir / "Tevavid Tools.py").exists()
+
+
+def test_localized_addons_folder(tmp_path):
+    from archicad_mcp.installer import addon_files
+
+    (tmp_path / "Kiegészítők").mkdir()
+    assert addon_files.addons_folder(tmp_path).name == "Kiegészítők"
+    assert addon_files.addons_folder(tmp_path / "missing").name == "Add-Ons"

@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import __version__, claude_desktop, suite
+from . import addon_files
 from . import system as sysmod
 from .system import APP_NAME, ArchicadInstall, InstallerError, System
 
@@ -155,10 +156,13 @@ class Installer:
         payload: Path | None,
         on_progress: Callable[[dict[str, Any]], None] = lambda state: None,
         downloader: Downloader = download,
+        addons: Path | None = None,
     ) -> None:
         self.system = system
         self.options = options
         self.payload = payload
+        self.addons = addons  # the Tevavid add-ons built for each Archicad version, bundled with setup
+        self.tapir_removed: set[int] = set()
         self.on_progress = on_progress
         self.downloader = downloader
         self.actions: list[dict[str, Any]] = []
@@ -253,7 +257,7 @@ class Installer:
         wanted: list[tuple[str, str]] = []
         if self.options.install_addon and self._tapir_targets():
             wanted.append(("tapir", f"{sysmod.TAPIR_RELEASES}/{self.system.tapir_installer_asset()}"))
-        if self.options.install_addon and not self.system.has_uv():
+        if self.options.install_addon and self._uses_tapir() and not self.system.has_uv():
             wanted.append(("uv", f"{sysmod.UV_RELEASES}/{self.system.uv_asset()}"))
         for number, (name, url) in enumerate(wanted):
             destination = self.work / url.rsplit("/", 1)[1]
@@ -327,6 +331,14 @@ class Installer:
             progress(1.0)
             return
         system = self.system
+        # 0. The Tevavid add-on, with the Tevavid menu, for the Archicad versions it was built for.
+        self._install_tevavid_addons()
+        progress(0.1)
+        if not self._uses_tapir():
+            progress(1.0)  # every Archicad gets the Tevavid add-on: no Tapir, palette script or uv
+            return
+
+        # Otherwise Tapir, as before, for the Archicad versions without a Tevavid add-on.
         # 1. The palette launcher: "Tevavid Tools" in the Tapir palette's script list.
         script = system.tapir_scripts_dir / f"{APP_NAME}.py"
         script.parent.mkdir(parents=True, exist_ok=True)
@@ -445,8 +457,47 @@ class Installer:
         return {int(t["version"]) for t in self.previous.get("targets", [])}  # manifests of 0.1.0
 
     def _tapir_targets(self) -> list[ArchicadInstall]:
+        """The Archicad versions that still need Tapir: no Tevavid add-on for them, and no Tapir yet."""
         installed = self._tapir_installed()
-        return [t for t in self.options.targets if t.version not in installed]
+        ours = {t.version for t in self._tevavid_targets()}
+        return [t for t in self.options.targets if t.version not in installed and t.version not in ours]
+
+    def _uses_tapir(self) -> bool:
+        """Whether Tapir, its palette script and uv are still needed: not every Archicad gets the Tevavid add-on."""
+        ours = {t.version for t in self._tevavid_targets()}
+        return not (self.options.targets and all(t.version in ours for t in self.options.targets))
+
+    def _tevavid_targets(self) -> list[ArchicadInstall]:
+        """The selected Archicad versions a Tevavid add-on was built for."""
+        if self.addons is None:
+            return []
+        return [t for t in self.options.targets
+                if (self.addons / addon_files.asset_name(t.version, self.system.platform)).exists()]
+
+    def _install_tevavid_addons(self) -> None:
+        targets = self._tevavid_targets()
+        if not targets:
+            return
+        platform = self.system.platform
+        job: dict[str, list] = {"copy": [], "remove": []}
+        places: dict[int, Path] = {}
+        for target in targets:
+            folder = addon_files.addons_folder(target.path)
+            places[target.version] = folder
+            job["copy"].append([str(self.addons / addon_files.asset_name(target.version, platform)),
+                                str(folder / addon_files.SUBFOLDER / addon_files.installed_name(target.version, platform))])
+            if target.version in self._tapir_installed():  # Tapir from an earlier Tevavid install: the Tevavid menu replaces it
+                job["remove"].append(str(folder / addon_files.TAPIR_SUBFOLDER))
+        result = addon_files.carry_out(self.system, job, self.work)
+        done = set(result["done"])
+        for _source, destination in job["copy"]:
+            if destination in done:
+                self.actions.append({"type": "addon_file", "path": destination})
+        for version, folder in places.items():
+            if str(folder / addon_files.TAPIR_SUBFOLDER) in done:
+                self.tapir_removed.add(version)
+        if result["failed"]:
+            self.warnings.append(addon_files.describe(result["failed"]))
 
     def _swap_in(self, unpacked: Path, target: Path) -> None:
         old = target.parent / f".{target.name}.old"
@@ -558,7 +609,7 @@ class Installer:
 
     def _write_manifest(self) -> dict[str, Any]:
         previous = self.previous or {}
-        tapir = sorted(self._tapir_installed() | self.tapir_done) if self.options.install_addon else []
+        tapir = sorted((self._tapir_installed() | self.tapir_done) - self.tapir_removed) if self.options.install_addon else []
         manifest = {
             "version": __version__,
             "installed": previous.get("installed", time.time()),
@@ -603,6 +654,14 @@ def _xml(text: str) -> str:
 
 
 def undo_actions(system: System, actions: list[dict[str, Any]], skip_dirs: bool = False) -> None:
+    addons = [a["path"] for a in actions if a.get("type") == "addon_file"]
+    if addons:  # all at once, so administrator rights are asked for only once
+        try:
+            result = addon_files.carry_out(system, {"remove": addons}, Path(tempfile.mkdtemp(prefix="tevavid-undo-")))
+            if result["failed"]:
+                log.warning("Could not remove the Tevavid add-on: %s", result["failed"])
+        except Exception:
+            log.exception("Could not remove the Tevavid add-on")
     for action in reversed(actions):
         try:
             kind = action["type"]

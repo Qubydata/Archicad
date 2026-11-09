@@ -46,6 +46,10 @@ def _setup(args: list[str]) -> int:
         handlers=[logging.FileHandler(system.data_dir / "setup.log", encoding="utf8"), logging.StreamHandler()],
     )
     logging.getLogger("archicad_mcp.installer").info("Tevavid Tools Setup %s starting %s", __version__, args)
+    if "--addon-files" in args:  # the part of setup that runs with administrator rights
+        from .installer.addon_files import run_job_file
+
+        return run_job_file(args[args.index("--addon-files") + 1])
     if "--silent" in args:
         from .installer.gui import run_silent
 

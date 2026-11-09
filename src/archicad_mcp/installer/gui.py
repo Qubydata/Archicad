@@ -39,6 +39,16 @@ def page(name: str) -> str:
     return html.replace('src="building.svg"', f'src="data:image/svg+xml;base64,{building}"')
 
 
+def bundled_addons() -> Path | None:
+    """The Tevavid add-ons for each Archicad version, bundled into the setup (or TEVAVID_ADDONS_DIR)."""
+    import os
+
+    if os.environ.get("TEVAVID_ADDONS_DIR"):
+        return Path(os.environ["TEVAVID_ADDONS_DIR"])
+    folder = Path(getattr(sys, "_MEIPASS", "")) / "addons"
+    return folder if getattr(sys, "frozen", False) and folder.is_dir() else None
+
+
 def payload_path() -> Path | None:
     """The app archive bundled into the setup executable (absent when running from source)."""
     base = Path(getattr(sys, "_MEIPASS", ""))
@@ -305,7 +315,7 @@ class SetupApp:
 
     def start_install(self, options: Options) -> None:
         self.options = options
-        self.installer = Installer(self.system, options, payload_path(), self._on_progress)
+        self.installer = Installer(self.system, options, payload_path(), self._on_progress, addons=bundled_addons())
         threading.Thread(target=self._install_thread, daemon=True).start()
 
     def _install_thread(self) -> None:
@@ -395,7 +405,7 @@ def run_silent(system: System, addon: bool = True, desktop_app: bool = True, too
             active = next((s["label"] for s in state["steps"] if s["state"] == "active"), "")
             print(f"{state['percent']:3d}% {active}", flush=True)
 
-    state = Installer(system, options, payload_path(), report).run()
+    state = Installer(system, options, payload_path(), report, addons=bundled_addons()).run()
     for warning in state["warnings"]:
         print(f"warning: {warning}", flush=True)
     if state["status"] != "done":
