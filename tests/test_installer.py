@@ -143,8 +143,12 @@ def test_full_install(home, payload, spawned):
     assert saved["mcpServers"]["archicad"]["args"] == ["-m", "archicad_mcp.launcher", "mcp"]
     assert json.loads((system.data_dir / "config.json").read_text()) == {"auto_open_panel": True, "tools": ["assistant", "sun"]}
 
+    tapir_config = json.loads((system.tapir_scripts_dir.parent / "config.json").read_text())
+    assert tapir_config["uvLocation"] == str(system.uv_dir / "uv")  # Tapir finds our uv without the PATH
+    assert tapir_config["repositories"][0]["repoName"] == "tapir-archicad-automation"
+
     manifest = json.loads(system.manifest_path.read_text())
-    assert {a["type"] for a in manifest["actions"]} == {"dir", "file", "claude_config"}
+    assert {a["type"] for a in manifest["actions"]} == {"dir", "file", "claude_config", "tapir_uv"}
     assert spawned == [system.app_command("panel", "--background")]
 
 
@@ -435,3 +439,18 @@ def test_display_errors_do_not_fail_the_installation(home, payload):
 
     state = Installer(system, Options([], desktop_app=False), payload, broken_display, fake_downloader()).run()
     assert state["status"] == "done" and (system.install_dir / "TevavidTools").exists()
+
+
+def test_tapir_is_pointed_at_uv_and_restored(home, payload):
+    system = FakeSystem(home)
+    config = system.tapir_scripts_dir.parent / "config.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(json.dumps({"repositories": [], "localFolders": [{"path": "C:/mine"}], "uvLocation": "C:/old/uv.exe"}))
+    Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()
+    saved = json.loads(config.read_text())
+    assert saved["uvLocation"] == str(system.uv_dir / "uv") and saved["localFolders"] == [{"path": "C:/mine"}]
+    Installer(system, Options([], desktop_app=False), payload, downloader=fake_downloader()).run()  # an update
+    manifest = install.read_manifest(system)
+    assert next(a for a in manifest["actions"] if a["type"] == "tapir_uv")["previous"] == "C:/old/uv.exe"
+    install.uninstall(system)
+    assert json.loads(config.read_text())["uvLocation"] == "C:/old/uv.exe"

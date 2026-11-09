@@ -103,6 +103,17 @@ def download(url: str, destination: Path, progress: Callable[[float], None], can
     progress(1.0)
 
 
+# What Tapir writes to Documents/Tapir/config.json when it starts without one.
+TAPIR_CONFIG_DEFAULTS = {
+    "repositories": [{"displayName": "Tapir", "repoOwner": "ENZYME-APD", "repoName": "tapir-archicad-automation",
+                      "relativeLoc": "builtin-scripts", "token": "", "excludeFromDownloadPattern": "",
+                      "includePattern": "", "excludePattern": ""}],
+    "localFolders": [],
+    "askUpdatingAddOnBeforeEachExecution": False,
+    "uvLocation": "",
+    "pythonLocation": "",
+}
+
 LAUNCHER_SCRIPT = '''"""Opens the Tevavid Tools panel. Installed by the Tevavid Tools setup; run it from the Tapir palette."""
 
 import subprocess
@@ -327,6 +338,7 @@ class Installer:
             except Exception as exc:
                 log.warning("uv install failed: %s", exc)
                 self.warnings.append("Could not install uv. Tapir will offer to install it the first time you run a script.")
+        self._point_tapir_at_uv()
         progress(0.25)
 
         # 3. The Tapir add-on itself, for the Archicad versions that do not have it from an earlier install.
@@ -449,6 +461,33 @@ class Installer:
             self._old_dir = old
         unpacked.rename(target)
 
+    def _point_tapir_at_uv(self) -> None:
+        """Tell Tapir where uv is (Documents/Tapir/config.json, "uvLocation").
+
+        On Windows Tapir only looks for uv on the PATH that Archicad started with, and the uv we
+        install is not on it, so without this Tapir reports that uv is missing.
+        """
+        system = self.system
+        uv = system.uv_dir / ("uv.exe" if system.is_windows else "uv")
+        if not uv.exists():
+            found = shutil.which("uv")
+            if not found:
+                return  # nothing to point at: the uv download failed, which was already reported
+            uv = Path(found)
+        path = system.tapir_scripts_dir.parent / "config.json"
+        try:
+            config = json.loads(path.read_text(encoding="utf8")) if path.exists() else dict(TAPIR_CONFIG_DEFAULTS)
+            if not isinstance(config, dict):
+                raise ValueError("not an object")
+        except (OSError, ValueError):
+            log.warning("Tapir's config.json could not be read; writing a fresh one")
+            config = dict(TAPIR_CONFIG_DEFAULTS)
+        previous = config.get("uvLocation", "")  # an update carries the first install's value over
+        config["uvLocation"] = str(uv)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(config, indent=4), encoding="utf8")
+        self.actions.append({"type": "tapir_uv", "path": str(path), "previous": previous})
+
     def _install_uv(self, archive: Path) -> None:
         target = self.system.uv_dir
         target.mkdir(parents=True, exist_ok=True)
@@ -508,8 +547,8 @@ class Installer:
             action = new.pop(_key(old), None)
             if action is None:
                 continue
-            if action["type"] == "claude_config":
-                # Uninstall restores what Claude Desktop had before Tevavid Tools, not our own older entry.
+            if action["type"] in ("claude_config", "tapir_uv"):
+                # Uninstall restores what was there before Tevavid Tools, not our own older entry.
                 action = {**action, "previous": old.get("previous")}
             merged.append(action)
         return merged + list(new.values())
@@ -572,6 +611,11 @@ def undo_actions(system: System, actions: list[dict[str, Any]], skip_dirs: bool 
                 sysmod.windows_delete_registry(action["key"], action.get("value"))
             elif kind == "launch_agent":
                 Path(action["path"]).unlink(missing_ok=True)
+            elif kind == "tapir_uv":
+                path = Path(action["path"])
+                config = json.loads(path.read_text(encoding="utf8"))
+                config["uvLocation"] = action.get("previous") or ""
+                path.write_text(json.dumps(config, indent=4), encoding="utf8")
             elif kind == "claude_config":
                 path = Path(action["path"])
                 config = json.loads(path.read_text(encoding="utf8"))
