@@ -20,6 +20,7 @@
 #include "TapirPalette.hpp"
 #include "ScriptUIPalette.hpp"
 #include "VersionChecker.hpp"
+#include "TevavidPanel.hpp"
 
 #include "ApplicationCommands.hpp"
 #include "ScriptUICommands.hpp"
@@ -108,41 +109,23 @@ static GSErrCode MenuCommandHandler (const API_MenuParams* menuParams)
             }
             break;
         case ID_ADDON_MENU_FOR_PALETTE:
+            // Tevavid: each tool opens the Tevavid panel on its tab.
             switch (menuParams->menuItemRef.itemIndex) {
-                case ID_ADDON_MENU_PALETTE:
-                    {
-                        if (TapirPalette::HasInstance () && TapirPalette::Instance ().IsVisible ()) {
-                            TapirPalette::Instance ().Hide ();
-                        } else {
-                            TapirPalette::Instance ().Show ();
-                        }
-                    }
-                    break;
+                case ID_TEVAVID_MENU_ASSISTANT: Tevavid::OpenPanel ("chat"); break;
+                case ID_TEVAVID_MENU_SUN:       Tevavid::OpenPanel ("sun"); break;
+                case ID_TEVAVID_MENU_SITE:      Tevavid::OpenPanel ("site"); break;
+                case ID_TEVAVID_MENU_IMPORT:    Tevavid::OpenPanel ("import"); break;
+                case ID_TEVAVID_MENU_SETTINGS:  Tevavid::OpenPanel ("settings"); break;
             }
             break;
         case ID_ADDON_MENU_FOR_UPDATE:
             switch (menuParams->menuItemRef.itemIndex) {
                 case ID_ADDON_MENU_UPDATE:
-                    // The same code as the palette's update button.
-                    TapirPalette::Instance ().CheckForUpdates ();
+                    // Tevavid Tools updates itself, add-on included: its Settings tab checks for updates.
+                    Tevavid::OpenPanel ("settings");
                     break;
             }
             break;
-        case ID_ADDON_MENU_FOR_SHORTCUTS:
-            switch (menuParams->menuItemRef.itemIndex) {
-                case ID_ADDON_MENU_MANAGE_SHORTCUTS:
-                    TapirPalette::Instance ().OpenShortcutsDialog ();
-                    break;
-            }
-            break;
-        // Each shortcut slot is its own top-level menu group (see ResourceIds.hpp) —
-        // RunShortcutSlot takes a 0-based slot index.
-        case ID_ADDON_MENU_RUNSCRIPT_1: TapirPalette::Instance ().RunShortcutSlot (0); break;
-        case ID_ADDON_MENU_RUNSCRIPT_2: TapirPalette::Instance ().RunShortcutSlot (1); break;
-        case ID_ADDON_MENU_RUNSCRIPT_3: TapirPalette::Instance ().RunShortcutSlot (2); break;
-        case ID_ADDON_MENU_RUNSCRIPT_4: TapirPalette::Instance ().RunShortcutSlot (3); break;
-        case ID_ADDON_MENU_RUNSCRIPT_5: TapirPalette::Instance ().RunShortcutSlot (4); break;
-        case ID_ADDON_MENU_RUNSCRIPT_6: TapirPalette::Instance ().RunShortcutSlot (5); break;
     }
 
     return NoError;
@@ -164,15 +147,8 @@ GSErrCode RegisterInterface (void)
     GSErrCode err = NoError;
 
     err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_FOR_PALETTE, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_FOR_UPDATE, 0, MenuCode_UserDef, MenuFlag_Default);
+    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_FOR_UPDATE, 0, MenuCode_UserDef, MenuFlag_SeparatorBefore);
     err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_FOR_SHORTCUTS, 0, MenuCode_UserDef, MenuFlag_SeparatorBefore);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_1, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_2, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_3, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_4, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_5, 0, MenuCode_UserDef, MenuFlag_Default);
-    err |= ACAPI_MenuItem_RegisterMenu (ID_ADDON_MENU_RUNSCRIPT_6, 0, MenuCode_UserDef, MenuFlag_Default);
 
     // So that 'Enable all informational messages' also re-enables ShowNotificationBubble's bubble
     // after its redrawCountLimit or disabled input turned it off.
@@ -188,14 +164,7 @@ GSErrCode Initialize (void)
     err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_FOR_PALETTE, MenuCommandHandler);
     err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_FOR_UPDATE, MenuCommandHandler);
     err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_FOR_SHORTCUTS, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_1, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_2, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_3, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_4, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_5, MenuCommandHandler);
-    err |= ACAPI_MenuItem_InstallMenuHandler (ID_ADDON_MENU_RUNSCRIPT_6, MenuCommandHandler);
-    err |= TapirPalette::RegisterPaletteControlCallBack ();
+    // Tevavid: no Tapir palette (its Python script runner needs uv); the Script UI palette shows the Tevavid panel.
     err |= ScriptUIPalette::RegisterPaletteControlCallBack ();
     // The add-on's one project event handler: drops the element states of CaptureElementState when
     // the project closes and passes window, floor and project events to the notification clients.
@@ -3561,32 +3530,10 @@ GSErrCode Initialize (void)
         AddCommandGroup (developerCommands);
     }
 
-    // The latest release is looked up on a background thread, so Archicad does not wait for GitHub while it
-    // starts or opens a project (#798). Once the result is in, the palette shows the "run with update" icon and
-    // the "update available" icon with "Update to <version>" as its tooltip on its update button, and the menu item
-    // reads "Update Tapir to <version>...".
-    VersionChecker::StartCheck ([] () {
-        TapirPalette::ApplyUpdateMenuItemState ();
-        if (TapirPalette::HasInstance ()) {
-            TapirPalette::Instance ().SetRunButtonIcon ();
-            TapirPalette::Instance ().SetUpdateButtonIcon ();
-        }
-    });
-
-    // Loading the palette singleton applies the custom shortcut menu labels and the enabled state
-    // of the shortcut menu items at startup, rather than only when the user first opens the
-    // palette or triggers a shortcut. It deliberately runs LAST and swallows every failure:
-    // constructing this DG::Palette from Initialize() aborted the rest of Initialize() on some
-    // configurations, which left every JSON command unregistered ("Archicad does not have the
-    // registered Add-On command", error 4010) while the add-on still looked healthy in the
-    // Add-On Manager and its menu worked - see #516. Registering the commands first makes that
-    // failure mode impossible; if the palette cannot be created this early, the shortcut labels
-    // are applied later, the first time the palette is actually used.
-    try {
-        TapirPalette::Instance ();
-    } catch (...) {
-        // Intentionally ignored: the menu labels are cosmetic, the commands above are not.
-    }
+    // Tevavid: Tevavid Tools updates itself (add-on included), so Tapir's GitHub update check and its
+    // palette are not used. Starting the Tevavid Tools service here lets it open the panel in this
+    // Archicad when "Open the panel when Archicad starts" is on; when it already runs this ends at once.
+    Tevavid::StartService ();
 
     return err;
 }

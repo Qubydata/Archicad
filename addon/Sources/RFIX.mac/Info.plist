@@ -5,13 +5,13 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.graphisoft.ExampleAddOn</string>
+	<string>com.tevavid.archicad.addon</string>
 	<key>CFBundleName</key>
-	<string>ExampleAddOn</string>
+	<string>Tevavid</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Example AddOn Description...</string>
+	<string>Tevavid Tools for Archicad</string>
 	<key>CFBundleShortVersionString</key>
-	<string>ExampleAddOn</string>
+	<string>Tevavid</string>
 	<key>CFBundlePackageType</key>
 	<string>.APX</string>
 	<key>CFBundleSignature</key>

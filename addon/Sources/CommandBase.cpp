@@ -7,7 +7,8 @@
 #include <cmath>
 
 constexpr double EPS = 0.001;
-constexpr const char* CommandNamespace = "TapirCommand";
+// Tevavid: its own namespace, so it never clashes with a Tapir add-on installed beside it.
+constexpr const char* CommandNamespace = "TevavidCommand";
 
 CommandBase::CommandBase (CommonSchema commonSchema) :
     mCommonSchema (commonSchema)

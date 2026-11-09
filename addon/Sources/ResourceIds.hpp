@@ -9,6 +9,12 @@
 
 #define ID_ADDON_MENU_FOR_PALETTE       32002
 #define ID_ADDON_MENU_PALETTE               1
+// Tevavid: the items of the ID_ADDON_MENU_FOR_PALETTE group, each opening a tab of the Tevavid panel.
+#define ID_TEVAVID_MENU_ASSISTANT           1
+#define ID_TEVAVID_MENU_SUN                 2
+#define ID_TEVAVID_MENU_SITE                3
+#define ID_TEVAVID_MENU_IMPORT              4
+#define ID_TEVAVID_MENU_SETTINGS            5
 
 #define ID_ADDON_MENU_FOR_UPDATE        32003
 #define ID_ADDON_MENU_UPDATE                1
