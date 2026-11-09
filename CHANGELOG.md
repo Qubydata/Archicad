@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 (2026-11-09)
+
+- Setup on Windows installs again (0.1.1 stopped with 'Main window failed to start').
+- The starting picture no longer lists files while setup unpacks.
+
 ## 0.1.1 (2026-11-03)
 
 - Setup opens on Windows (it closed straight away in 0.1.0).
