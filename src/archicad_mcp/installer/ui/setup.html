@@ -61,10 +61,12 @@
   .features svg.i { color: var(--accent); width: 21px; height: 21px; }
   #welcome .buttons { margin-top: auto; }
 
-  /* 2. options */
+  /* 2. Archicad versions, 3. tools */
   .page { padding: 30px 32px 22px; display: flex; flex-direction: column; height: 100%; }
   .page .lead { margin-top: 6px; }
-  .versions { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 178px; padding-right: 4px; }
+  /* the lists take the room between the title and the buttons, and scroll when they need more */
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 16px; padding-right: 6px; }
+  .versions { display: flex; flex-direction: column; gap: 14px; }
   .option.soon { cursor: default; opacity: .55; }
   .new-tag { display: inline-block; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); border-radius: 10px; padding: 0 7px; vertical-align: 1px; }
   .update-note { margin: -4px 0 14px; padding: 9px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-strong); font-size: 14px; }
@@ -82,7 +84,7 @@
   .page .buttons { margin-top: auto; padding-top: 10px; }
   .none-found { color: var(--muted); font-size: 13.5px; }
 
-  /* 3. installing */
+  /* 4. installing */
   .steps { list-style: none; padding: 0; margin: 24px 0 0 4px; display: flex; flex-direction: column; gap: 17px; }
   .steps li { display: flex; align-items: center; gap: 16px; font-size: 15.5px; color: var(--text-2); }
   .steps li.pending { color: var(--faint); }
@@ -102,7 +104,7 @@
   .pct { width: 42px; text-align: right; color: var(--text-2); font-size: 14.5px; }
   .error { margin-top: 14px; color: var(--bad); font-size: 14px; }
 
-  /* 4. complete */
+  /* 5. complete */
   #complete .page { flex-direction: row; gap: 30px; align-items: flex-start; padding: 34px 34px 24px 40px; }
   .big { width: 88px; height: 88px; border-radius: 50%; display: grid; place-content: center; flex: none; margin-top: 4px; }
   .big.ok { background: var(--ok); }
@@ -129,7 +131,7 @@
       <svg class="logo" viewBox="120 140 600 330" fill="currentColor" aria-hidden="true"><path d="M140 287 Q140 263 163 268 L292 302 Q306 306 314 319 L375 420 Q385 452 352 452 L162 452 Q140 452 140 430 Z"/><path d="M458 290 Q462 276 476 268 L664 168 Q698 152 698 190 L698 430 Q698 452 676 452 L434 452 Q403 452 412 424 Z"/></svg>
       <div><h1>Tevavid Tools</h1><p>for Archicad</p></div>
     </div>
-    <p class="intro" id="intro">A growing suite of tools for Archicad. Pick the ones you want on the next screen.</p>
+    <p class="intro" id="intro">A growing suite of tools for Archicad. Pick your Archicad versions and tools on the next screens.</p>
     <div class="update-note" id="updateNote" hidden></div>
     <ul class="features">
       <li><i data-icon="check"></i><span id="supported">Works with Archicad 25 - 30</span></li>
@@ -144,25 +146,38 @@
   </div>
 </section>
 
-<!-- 2. Options -->
+<!-- 2. Archicad versions -->
+<section class="screen" id="archicad" hidden>
+  <div class="page">
+    <h1>Choose Archicad Versions</h1>
+    <p class="lead">Select which Archicad versions to install the tools for:</p>
+    <div class="scroll"><div class="versions" id="versions"></div></div>
+    <div class="buttons">
+      <button class="btn" data-action="go" data-to="welcome">Back</button>
+      <button class="btn primary" data-action="go" data-to="options" id="versionsNext">Next</button>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Tools -->
 <section class="screen" id="options" hidden>
   <div class="page">
-    <h1>Choose Installation Options</h1>
-    <p class="lead">Select which Archicad versions to install the tools for:</p>
-    <div class="versions" id="versions"></div>
-    <hr>
-    <h2>Tools</h2>
-    <div id="toolList"></div>
-    <label class="option"><input type="checkbox" class="cb" id="optDesktop" checked>
-      <div><b>Open the panel when Archicad starts</b><span>Runs in the background for faster performance</span></div></label>
+    <h1>Choose Tools</h1>
+    <p class="lead">Select the tools to install:</p>
+    <div class="scroll">
+      <div id="toolList"></div>
+      <hr>
+      <label class="option"><input type="checkbox" class="cb" id="optDesktop" checked>
+        <div><b>Open the panel when Archicad starts</b><span>Runs in the background for faster performance</span></div></label>
+    </div>
     <div class="buttons">
-      <button class="btn" data-action="back">Back</button>
+      <button class="btn" data-action="go" data-to="archicad">Back</button>
       <button class="btn primary" data-action="install" id="installButton">Install</button>
     </div>
   </div>
 </section>
 
-<!-- 3. Installing -->
+<!-- 4. Installing -->
 <section class="screen" id="installing" hidden>
   <div class="page">
     <h1 id="installingTitle">Installing Tevavid Tools</h1>
@@ -175,7 +190,7 @@
   </div>
 </section>
 
-<!-- 4. Complete -->
+<!-- 5. Complete -->
 <section class="screen" id="complete" hidden>
   <div class="page">
     <div class="big ok" id="bigIcon"></div>
@@ -209,9 +224,9 @@ document.querySelectorAll("i[data-icon]").forEach(el => {
 });
 
 const $ = id => document.getElementById(id);
-const screens = ["welcome", "options", "installing", "complete"];
+const screens = ["welcome", "archicad", "options", "installing", "complete"];
 let state = null;      // from Python: versions, platform...
-let targets = [];      // rows on the options screen
+let targets = [];      // rows on the Archicad versions screen
 let installing = false;
 let result = null;
 let existing = null;   // the installed copy, when this run updates it
@@ -286,8 +301,11 @@ function renderTools() {
 function updateInstallButton() {
   const tools = chosenTools();
   const needsArchicad = state.tools.some(t => tools.includes(t.id) && t.needs_tapir);
+  const anyVersion = targets.some(t => t.selected);
   // A tool must be picked, and the tools that work inside Archicad need an Archicad version.
-  $("installButton").disabled = !tools.length || (needsArchicad && !targets.some(t => t.selected));
+  $("installButton").disabled = !tools.length || (needsArchicad && !anyVersion);
+  // Every tool on offer works inside Archicad, so the versions screen needs one picked.
+  $("versionsNext").disabled = !anyVersion && state.tools.every(t => !t.available || t.needs_tapir);
 }
 
 function renderSteps(steps) {
@@ -344,8 +362,8 @@ document.addEventListener("click", async event => {
   if (!button || button.disabled) return;
   const action = button.dataset.action;
   if (action === "cancel") api().quit();
-  if (action === "next") show("options");
-  if (action === "back") show("welcome");
+  if (action === "next") show("archicad");
+  if (action === "go") show(button.dataset.to);
   if (action === "install") {
     installing = true;
     renderSteps(state.steps.map(label => ({ label, state: "pending" })));
@@ -382,7 +400,7 @@ function showUpdate() {
   } else {
     note.textContent = `Version ${existing.version} is installed. This updates it to ${state.version} and keeps your settings and conversations.`;
   }
-  $("intro").textContent = "Welcome back. Your tools stay as they are, and tools added since then are ticked on the next screen.";
+  $("intro").textContent = "Welcome back. Your Archicad versions and tools stay as they are, and tools added since then are ticked for you.";
   $("installButton").textContent = same ? "Apply" : (existing.newer ? "Install" : "Update");
   $("installingTitle").textContent = "Updating Tevavid Tools";
   $("installingLead").textContent = "Please wait while we update Tevavid Tools. It keeps working until the new version is ready.";

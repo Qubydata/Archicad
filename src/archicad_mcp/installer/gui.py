@@ -20,7 +20,7 @@ from .system import SUPPORTED_VERSIONS, ArchicadInstall, System
 log = logging.getLogger("archicad_mcp.installer")
 UI = Path(__file__).resolve().parent / "ui"
 MAIN_SIZE = (640, 520)
-OPTIONS_SIZE = (640, 640)  # the options screen lists Archicad versions and the tools
+OPTIONS_SIZE = (640, 640)  # the tools screen (the lists scroll when the window is shorter)
 COMPLETE_SIZE = (640, 300)
 MINI_SIZE = (380, 118)
 TOAST_SIZE = (390, 126)
