@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 (2026-11-09)
+
+- Sun Analysis works on Archicad versions that reject element filters (error 4002 on '#/filters').
+
 ## 0.1.3 (2026-11-09)
 
 - Tapir finds uv after installing: no more 'Tapir could not find uv'.
