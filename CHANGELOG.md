@@ -4,6 +4,7 @@
 
 - The Tevavid menu in Archicad's menu bar: AI Assistant, Sun Analysis, Site from Map, Model Import, Settings. Our own Archicad add-on replaces Tapir, so no uv or Python scripts are needed.
 - Site from Map: the real terrain and neighbouring buildings around the project location, or a surveyor's points and contours, as an Archicad Mesh.
+- Model Import: bring in FBX, OBJ, glTF, 3DS and other 3D models (for example from D5 Works), remove parts, reduce polygons with a slider and a green/amber/red budget, and save them as objects in your library folders (Furniture > Tables...).
 - Sun Analysis works on Archicad versions that reject element filters.
 
 ## 0.1.4 (2026-11-09)
