@@ -5,7 +5,6 @@
 #include "DGModule.hpp"
 #include "File.hpp"
 #include "FileSystem.hpp"
-#include "Guid.hpp"
 #include "ObjectState.hpp"
 #include "ObjectStateJSONConversion.hpp"
 #include "Process.hpp"
