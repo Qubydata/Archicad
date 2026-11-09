@@ -1,0 +1,73 @@
+name: Build add-on
+
+# The Tevavid Archicad add-on (addon/, built on Tapir's add-on) for every Archicad version in
+# addon/devkits.json, on Windows and macOS, with Graphisoft's public API DevKits. The installer
+# workflow calls this one and puts the add-ons into the setup.
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["addon/**", ".github/workflows/build-addon.yml"]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  devkits:
+    runs-on: ubuntu-latest
+    outputs:
+      win: ${{ steps.list.outputs.win }}
+      mac: ${{ steps.list.outputs.mac }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          echo "win=$(python3 addon/tools/devkits.py matrix WIN)" >> "$GITHUB_OUTPUT"
+          echo "mac=$(python3 addon/tools/devkits.py matrix MAC)" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: devkits
+    strategy:
+      fail-fast: false
+      matrix:
+        params: ${{ fromJSON(needs.devkits.outputs.win) }}
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the DevKit
+        run: python addon/Tools/download_and_unzip.py ${{ matrix.params.devKitUrl }} addon/Build/DevKits/AC${{ matrix.params.acVersion }}
+      - name: Generate the project (Archicad 28 and older use the v142 toolset)
+        if: matrix.params.acVersion < 29
+        run: cmake -B addon/Build -G "Visual Studio 17 2022" -A x64 -T v142 -DAC_VERSION=${{ matrix.params.acVersion }} -DAC_API_DEVKIT_DIR="addon/Build/DevKits/AC${{ matrix.params.acVersion }}/Support" addon
+      - name: Generate the project
+        if: matrix.params.acVersion >= 29
+        run: cmake -B addon/Build -G "Visual Studio 17 2022" -A x64 -T v143 -DAC_VERSION=${{ matrix.params.acVersion }} -DAC_API_DEVKIT_DIR="addon/Build/DevKits/AC${{ matrix.params.acVersion }}/Support" addon
+      - name: Build
+        run: cmake --build addon/Build --config RelWithDebInfo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TevavidAddOn-AC${{ matrix.params.acVersion }}-Win
+          path: addon/Build/RelWithDebInfo/TevavidAddOn_AC${{ matrix.params.acVersion }}_Win.apx
+
+  macos:
+    needs: devkits
+    # GitHub sometimes has no macOS machine for this account; a Mac build that cannot run does not stop the Windows ones.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        params: ${{ fromJSON(needs.devkits.outputs.mac) }}
+    runs-on: ${{ matrix.params.acVersion < 26 && 'macos-15-intel' || 'macos-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the DevKit
+        run: python3 addon/Tools/download_and_unzip.py ${{ matrix.params.devKitUrl }} addon/Build/DevKits/AC${{ matrix.params.acVersion }}
+      - name: Generate the project
+        run: cmake -B addon/Build -G Xcode -DAC_VERSION=${{ matrix.params.acVersion }} -DAC_API_DEVKIT_DIR="addon/Build/DevKits/AC${{ matrix.params.acVersion }}/Support" addon
+      - name: Build
+        run: cmake --build addon/Build --config RelWithDebInfo
+      - name: Zip the bundle
+        run: ditto -c -k --keepParent addon/Build/RelWithDebInfo/TevavidAddOn_AC${{ matrix.params.acVersion }}_Mac.bundle addon/Build/TevavidAddOn_AC${{ matrix.params.acVersion }}_Mac.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TevavidAddOn-AC${{ matrix.params.acVersion }}-Mac
+          path: addon/Build/TevavidAddOn_AC${{ matrix.params.acVersion }}_Mac.zip

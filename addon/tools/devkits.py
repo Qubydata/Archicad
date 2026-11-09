@@ -28,7 +28,7 @@ import sys
 import urllib.request
 
 ROOT = os.path.dirname (os.path.dirname (os.path.abspath (__file__)))
-DEVKITS_JSON = os.path.join (ROOT, 'archicad-addon', 'devkits.json')
+DEVKITS_JSON = os.path.join (ROOT, 'devkits.json')  # Tevavid: addon/devkits.json
 README = os.path.join (ROOT, 'README.md')
 DEVKIT_REPO = 'GRAPHISOFT/archicad-api-devkit'
 DOWNLOAD_URL = 'https://github.com/' + DEVKIT_REPO + '/releases/download/{0}/API.Development.Kit.{1}.{0}.zip'
