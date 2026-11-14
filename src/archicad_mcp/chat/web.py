@@ -27,7 +27,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response, StreamingR
 from mcp.server.mcpserver.exceptions import ToolError
 from starlette.routing import Route
 
-from .. import __version__, catalog, claude_desktop
+from .. import __version__, catalog, claude_code, claude_desktop
 from .. import server as mcp_server
 from ..connection import ArchicadError
 from ..updater import UpdateError, Updater
@@ -131,6 +131,7 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
                 "keyFromEnvironment": not settings.api_key and bool(settings.resolved_api_key),
             },
             "claudeDesktop": claude_desktop.status(),
+            "claudeCode": claude_code.status(),
             "models": config.MODELS,
             "efforts": config.EFFORTS,
             "busy": agent.busy,
@@ -159,6 +160,13 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         except claude_desktop.ClaudeDesktopError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
         return JSONResponse({"ok": True, **claude_desktop.status()})
+
+    async def connect_claude_code(request: Request) -> Response:
+        try:
+            claude_code.connect()
+        except claude_code.ClaudeCodeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True, **claude_code.status()})
 
     async def history(request: Request) -> Response:
         return JSONResponse({
@@ -544,6 +552,7 @@ def create_app(port: int, token: str | None = None, updater: Updater | None = No
         ("/api/status", status, ["GET"]),
         ("/api/settings", save_settings, ["POST"]),
         ("/api/claude-desktop/connect", connect_claude_desktop, ["POST"]),
+        ("/api/claude-code/connect", connect_claude_code, ["POST"]),
         ("/api/history", history, ["GET"]),
         ("/api/conversations", conversations, ["GET"]),
         ("/api/conversations/open", open_conversation, ["POST"]),

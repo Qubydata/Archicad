@@ -328,8 +328,12 @@ class SetupApp:
                 state["archicadRunning"] = False
             if state["archicadRunning"] and self.options.install_addon and not state["update"]:
                 state["warnings"].append("Restart Archicad to load the add-on and the Tevavid panel.")
-            if state["update"] and "assistant" in self.options.tools and self.system.claude_config_path.exists():
-                state["warnings"].append("Restart Claude Desktop to use the updated AI Assistant there.")
+            if state["update"] and "assistant" in self.options.tools:
+                apps = [name for name, path in (("restart Claude Desktop", self.system.claude_config_path),
+                                                ("start a new conversation in Claude Code (VS Code)",
+                                                 self.system.claude_code_config_path)) if path.exists()]
+                if apps:
+                    state["warnings"].append(f"{' and '.join(apps).capitalize()} to use the updated AI Assistant there.")
         self.result = state
         self._push(state)
         self.hide_mini()

@@ -98,6 +98,11 @@ class System:
         return self.home / ".config" / "Claude" / "claude_desktop_config.json"
 
     @property
+    def claude_code_config_path(self) -> Path:
+        """Claude Code's settings (VS Code, JetBrains and the terminal share them), on every system."""
+        return self.home / ".claude.json"
+
+    @property
     def start_menu_shortcut(self) -> Path:
         base = Path(os.environ.get("APPDATA", self.home / "AppData" / "Roaming"))
         return base / "Microsoft" / "Windows" / "Start Menu" / "Programs" / f"{APP_NAME}.lnk"

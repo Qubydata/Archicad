@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .. import __version__, claude_desktop, suite
+from .. import __version__, claude_code, claude_desktop, suite
 from . import addon_files
 from . import system as sysmod
 from .system import APP_NAME, ArchicadInstall, InstallerError, System
@@ -396,6 +396,7 @@ class Installer:
         system = self.system
         if "assistant" in self.options.tools:
             self._configure_claude_desktop()
+            self._configure_claude_code()
         progress(0.4)
         # The panel shows a tab for each installed tool; existing settings (like an API key) are kept.
         settings_file = system.data_dir / "config.json"
@@ -593,6 +594,19 @@ class Installer:
             return
         self.actions.append({"type": "claude_config", "path": str(path), "previous": previous})
 
+    def _configure_claude_code(self) -> None:
+        """Claude in VS Code (and JetBrains, and the terminal) is Claude Code, with its own settings."""
+        path = self.system.claude_code_config_path
+        if not claude_code.is_installed(path):
+            return
+        try:
+            previous = claude_code.connect(self.system.server_command(), path)
+        except claude_code.ClaudeCodeError:
+            self.warnings.append("Claude Code's settings file could not be changed, so Claude in VS Code was not "
+                                 "connected. Connect it later from Settings in the Tevavid panel.")
+            return
+        self.actions.append({"type": "claude_config", "path": str(path), "previous": previous})
+
     def _merged_actions(self) -> list[dict[str, Any]]:
         """This run's actions, in the order the first install made them, so uninstall can undo them all."""
         new = {_key(a): a for a in self.actions}
@@ -686,7 +700,7 @@ def undo_actions(system: System, actions: list[dict[str, Any]], skip_dirs: bool 
                     servers.pop("archicad", None)
                 else:
                     servers["archicad"] = action["previous"]
-                path.write_text(json.dumps(config, indent=2), encoding="utf8")
+                claude_desktop.write_config(path, config)
         except Exception:
             log.exception("Could not undo %s", action)
 

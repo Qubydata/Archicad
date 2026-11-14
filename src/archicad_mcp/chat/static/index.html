@@ -540,6 +540,11 @@
         <div class="state-line" id="desktopState"></div>
       </div>
       <div class="way">
+        <h3>Use Claude in VS Code <span class="tag">Claude Code</span></h3>
+        <p>Claude Code in VS Code, JetBrains or the terminal can work on this model too, with the same Claude plan.</p>
+        <div class="state-line" id="codeState"></div>
+      </div>
+      <div class="way">
         <h3>Chat here in Archicad</h3>
         <p>This panel needs an Anthropic API key. Anthropic bills your usage, pay as you go. The key stays on this computer.</p>
         <div class="field">Anthropic API key
@@ -1125,6 +1130,7 @@ async function refreshStatus() {
     : "sk-ant-...";
 
   renderDesktop(status.claudeDesktop);
+  renderCode(status.claudeCode);
   applyTools(status.tools || ["assistant", "sun"]);
 
   const a = status.archicad;
@@ -1139,6 +1145,24 @@ async function refreshStatus() {
     ? `Connected to Archicad ${escapeHtml(a.product.version)} (build ${escapeHtml(a.product.buildNumber)}) on port ${escapeHtml(a.port)}<br>` +
       `Project: ${escapeHtml(a.project || "untitled")}<br>Tevavid add-on: ${a.tapir ? escapeHtml(a.tapirVersion || "installed") : "not loaded"}`
     : `Archicad: not connected<br>${escapeHtml(a.message || "")}`;
+}
+
+function renderCode(code) {
+  const box = $("codeState");
+  if (!code) { box.innerHTML = ""; return; }
+  const done = '<div class="ok">\u2713 Connected to Claude Code</div><div class="small">In VS Code, start a new Claude conversation, then ask about your Archicad project.</div>';
+  if (code.connected) {
+    box.innerHTML = done;
+  } else if (code.installed) {
+    box.innerHTML = '<button class="secondary" id="connectCode">Connect to Claude Code</button><div class="small" id="codeHint"></div>';
+    $("connectCode").onclick = async () => {
+      const answer = await postJson("/api/claude-code/connect");
+      if (answer.error) { $("codeHint").textContent = answer.error; return; }
+      box.innerHTML = done;
+    };
+  } else {
+    box.innerHTML = '<div class="small">Claude Code is not set up on this computer. Install the Claude Code extension in VS Code and open it once, then open this tab again to connect it.</div>';
+  }
 }
 
 function renderDesktop(desktop) {

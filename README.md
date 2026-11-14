@@ -21,14 +21,16 @@ Tools are listed in `src/archicad_mcp/suite.py`; adding one there puts it in the
    - the **Tevavid add-on** in each Archicad, which adds the **Tevavid** menu to Archicad's menu bar
      and the model commands the tools use (Windows asks once for administrator permission, since
      Archicad's Add-Ons folder is in Program Files),
-   - with the AI Assistant, the `archicad` server in Claude Desktop, if Claude Desktop is installed,
+   - with the AI Assistant, the `archicad` server in Claude Desktop and in Claude Code (Claude in
+     VS Code, JetBrains and the terminal), for those that are installed,
    - optionally the background app, which opens the panel whenever Archicad starts.
 3. Start Archicad and open a project. Use the **Tevavid** menu: AI Assistant, Sun Analysis, Site
    from Map, Model Import, Settings. The panel opens next to the model (also by itself at start,
    unless that option is off).
 4. The AI Assistant is free and works with your own Claude, in either of two ways:
-   - **With a Claude plan (Pro, Max, Team):** use it from Claude Desktop, at no extra cost. The
-     setup connects it (restart Claude Desktop once); the panel's Settings tab can also connect it.
+   - **With a Claude plan (Pro, Max, Team):** use it from Claude Desktop or from Claude in VS Code
+     (Claude Code), at no extra cost. The setup connects both (restart Claude Desktop once, or start
+     a new conversation in VS Code); the panel's Settings tab can also connect them.
    - **In the panel inside Archicad:** paste an Anthropic API key from
      [console.anthropic.com](https://console.anthropic.com/settings/keys) in the Settings tab.
      Anthropic bills the usage, pay as you go. (Claude plans can only be used from Anthropic's own

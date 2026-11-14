@@ -166,6 +166,25 @@ def test_uninstall_undoes_everything(home, payload):
     assert not system.manifest_path.exists()
 
 
+def test_claude_in_vs_code_is_connected_and_disconnected(home, payload):
+    system = FakeSystem(home)
+    code = system.claude_code_config_path
+    code.write_text(json.dumps({"numStartups": 3, "mcpServers": {"blender": {"command": "uvx"}}}))
+    state = Installer(system, Options([], install_addon=False, desktop_app=False), payload, downloader=fake_downloader()).run()
+    assert state["status"] == "done", state
+    servers = json.loads(code.read_text())["mcpServers"]
+    assert servers["archicad"]["command"] == system.server_command()[0] and "blender" in servers
+
+    install.uninstall(system)
+    assert json.loads(code.read_text()) == {"numStartups": 3, "mcpServers": {"blender": {"command": "uvx"}}}
+
+
+def test_claude_code_is_left_alone_when_not_installed(home, payload):
+    system = FakeSystem(home)
+    Installer(system, Options([], install_addon=False, desktop_app=False), payload, downloader=fake_downloader()).run()
+    assert not system.claude_code_config_path.exists()
+
+
 def test_cancel_rolls_back(home, payload, spawned):
     system = FakeSystem(home)
     config = claude_config(system, {})
